@@ -66,6 +66,17 @@ function StatusBadge({ status }) {
   )
 }
 
+function airportCode(v) {
+  if (!v) return null
+  if (typeof v === 'string') return v
+  return v.code_iata || v.code_icao || v.code || null
+}
+
+function airportCity(v) {
+  if (!v || typeof v === 'string') return null
+  return v.city || v.name || null
+}
+
 export default function RoutePanel() {
   const { currentAircraft, enrichment } = useContext(AircraftContext)
 
@@ -78,7 +89,11 @@ export default function RoutePanel() {
     )
   }
 
-  const { origin, destination, status, progress_percent } = enrichment ?? {}
+  const { origin: rawOrigin, destination: rawDest, status, progress_percent } = enrichment ?? {}
+  const origin = airportCode(rawOrigin)
+  const destination = airportCode(rawDest)
+  const originCity = airportCity(rawOrigin)
+  const destCity = airportCity(rawDest)
 
   if (!origin && !destination) {
     return (
@@ -96,10 +111,12 @@ export default function RoutePanel() {
       <div className="route-head">
         <div>
           <div className="route-code">{origin || '----'}</div>
+          {originCity && <div className="route-sub">{originCity}</div>}
         </div>
         <RouteTrack progress={progress} />
         <div style={{ textAlign: 'right' }}>
           <div className="route-code">{destination || '----'}</div>
+          {destCity && <div className="route-sub">{destCity}</div>}
         </div>
       </div>
 
