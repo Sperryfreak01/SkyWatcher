@@ -160,8 +160,8 @@ app.get('/api/enrich/:callsign', async (req, res) => {
 // ─── GET /health ─────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
-  return res.json({ status: 'ok' })
-})
+  return res.json({ status: 'ok' });
+});
 
 // ─── GET /api/quota ───────────────────────────────────────────────────────────
 
