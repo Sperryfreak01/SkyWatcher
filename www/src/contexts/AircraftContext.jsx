@@ -1,4 +1,5 @@
-import { createContext, useState } from 'react'
+import { createContext, useState, useEffect } from 'react'
+import { useHistory } from '../lib/history'
 
 export const AircraftContext = createContext({
   currentAircraft: null,
@@ -10,14 +11,20 @@ export const AircraftContext = createContext({
 export function AircraftProvider({ children }) {
   const [currentAircraft, setCurrentAircraft] = useState(null)
   const [visibleAircraft, setVisibleAircraft] = useState([])
-  const [history, setHistory] = useState([])
   const [pollingStatus, setPollingStatus] = useState('idle')
+
+  const { history, addEntry } = useHistory()
+
+  useEffect(() => {
+    if (!currentAircraft) return
+    addEntry(currentAircraft)
+  }, [currentAircraft])
 
   return (
     <AircraftContext.Provider value={{
       currentAircraft, setCurrentAircraft,
       visibleAircraft, setVisibleAircraft,
-      history, setHistory,
+      history,
       pollingStatus, setPollingStatus,
     }}>
       {children}
