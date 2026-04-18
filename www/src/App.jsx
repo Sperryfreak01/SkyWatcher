@@ -31,13 +31,13 @@ function AppShell() {
   useAdsbPoller()
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
-  const { theme, chartVariant, updateSettings } = useContext(SettingsContext)
+  const { chartVariant, updateSettings } = useContext(SettingsContext)
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
 
   return (
-    <div className="app" data-theme={theme === 'auto' ? undefined : theme}>
+    <div className="app">
       <StatusBar />
 
       {showWeather ? (

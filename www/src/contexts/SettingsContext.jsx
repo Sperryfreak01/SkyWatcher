@@ -26,6 +26,15 @@ export function SettingsProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
   }, [settings])
 
+  useEffect(() => {
+    const el = document.documentElement
+    if (settings.theme === 'auto') {
+      el.removeAttribute('data-theme')
+    } else {
+      el.setAttribute('data-theme', settings.theme)
+    }
+  }, [settings.theme])
+
   function updateSettings(patch) {
     setSettings(prev => ({ ...prev, ...patch }))
   }
