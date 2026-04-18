@@ -123,12 +123,12 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       headers: { 'x-apikey': apiKey },
     });
 
-    incrementQuota();
-
     if (!faRes.ok) {
       console.error(`[enrich] FlightAware returned HTTP ${faRes.status} for ${callsign}`);
       return res.status(faRes.status).json({ error: 'fa_upstream_error', status: faRes.status });
     }
+
+    incrementQuota();
 
     const faData = await faRes.json();
 
@@ -155,6 +155,12 @@ app.get('/api/enrich/:callsign', async (req, res) => {
     console.error('[enrich] fetch error:', err.message);
     return res.status(502).json({ error: 'fa_fetch_failed' });
   }
+});
+
+// ─── GET /health ─────────────────────────────────────────────────────────────
+
+app.get('/health', (_req, res) => {
+  return res.json({ status: 'ok' });
 });
 
 // ─── GET /api/quota ───────────────────────────────────────────────────────────
