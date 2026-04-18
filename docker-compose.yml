@@ -1,0 +1,45 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: skywatcher-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      proxy:
+        condition: service_started
+    networks:
+      - skywatcher
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    container_name: skywatcher-proxy
+    environment:
+      - FLIGHTAWARE_API_KEY=${FLIGHTAWARE_API_KEY}
+      - ADSB_URL=${ADSB_URL}
+      - OBSERVER_LAT=${OBSERVER_LAT}
+      - OBSERVER_LON=${OBSERVER_LON}
+      - OBSERVER_ELEV=${OBSERVER_ELEV}
+      - OBSTRUCTION_ANGLE=${OBSTRUCTION_ANGLE:-14.2}
+      - FA_DAILY_QUOTA=${FA_DAILY_QUOTA:-100}
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=UTC
+    networks:
+      - skywatcher
+    restart: unless-stopped
+    expose:
+      - "3000"
+
+networks:
+  skywatcher:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
