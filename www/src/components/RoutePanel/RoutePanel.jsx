@@ -67,7 +67,7 @@ function StatusBadge({ status }) {
 }
 
 export default function RoutePanel() {
-  const { currentAircraft } = useContext(AircraftContext)
+  const { currentAircraft, enrichment } = useContext(AircraftContext)
 
   if (!currentAircraft) {
     return (
@@ -78,7 +78,7 @@ export default function RoutePanel() {
     )
   }
 
-  const { origin, destination, status, progress_percent } = currentAircraft
+  const { origin, destination, status, progress_percent } = enrichment ?? {}
 
   if (!origin && !destination) {
     return (
