@@ -1,0 +1,23 @@
+# Observer config (never commit real coords)
+www/js/config.js
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Vite build output
+www/dist/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
