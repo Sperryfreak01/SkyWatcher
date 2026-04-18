@@ -5,6 +5,11 @@ import { useAdsbPoller } from './lib/adsb'
 import SkyChart from './components/SkyChart'
 import WeatherPanel from './components/WeatherPanel'
 import FirstRun from './components/FirstRun'
+import IdentityPanel from './components/IdentityPanel/IdentityPanel'
+import RoutePanel from './components/RoutePanel'
+import TransponderPanel from './components/TransponderPanel'
+import HistoryPanel from './components/HistoryPanel/HistoryPanel'
+import StatusBar from './components/StatusBar/StatusBar'
 
 export default function App() {
   const configured = localStorage.getItem('skywatcher-configured') === 'true'
@@ -17,25 +22,83 @@ export default function App() {
   return <AppShell />
 }
 
+function formatDistance(m) {
+  if (m == null) return '—'
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
+}
+
 function AppShell() {
   useAdsbPoller()
 
-  const { visibleAircraft, pollingStatus } = useContext(AircraftContext)
-  const { theme } = useContext(SettingsContext)
+  const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
+  const { theme, chartVariant, updateSettings } = useContext(SettingsContext)
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
+  const variant = chartVariant || 'classic'
 
   return (
     <div className="app" data-theme={theme === 'auto' ? undefined : theme}>
+      <StatusBar />
+
       {showWeather ? (
         <WeatherPanel />
       ) : (
-        <div style={{ width: 300, height: 300 }}>
-          <SkyChart
-            aircraft={visibleAircraft}
-            variant="classic"
-            loading={pollingStatus === 'idle'}
-          />
+        <div className="main">
+          <div className="left-pane">
+            <div className="corners-top">
+              <div />
+              <div className="chart-toggle">
+                <button
+                  className={variant === 'classic' ? 'active' : ''}
+                  onClick={() => updateSettings({ chartVariant: 'classic' })}
+                >
+                  Classic
+                </button>
+                <button
+                  className={variant === 'dome' ? 'active' : ''}
+                  onClick={() => updateSettings({ chartVariant: 'dome' })}
+                >
+                  Dome
+                </button>
+              </div>
+            </div>
+
+            <div className="chart-wrap">
+              <SkyChart
+                aircraft={visibleAircraft}
+                variant={variant}
+                loading={pollingStatus === 'idle'}
+              />
+            </div>
+
+            <div className="bearing-strip">
+              <div className="stat">
+                <div className="stat-k">AZ</div>
+                <div className="stat-v sm accent">
+                  {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-k">EL</div>
+                <div className="stat-v sm accent">
+                  {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-k">DIST</div>
+                <div className="stat-v sm">
+                  {currentAircraft ? formatDistance(currentAircraft.distance3d) : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="right-pane">
+            <IdentityPanel />
+            <RoutePanel />
+            <TransponderPanel />
+            <HistoryPanel />
+          </div>
         </div>
       )}
     </div>
