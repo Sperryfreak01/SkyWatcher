@@ -2,8 +2,15 @@ import { useContext } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 import AircraftPhoto from './AircraftPhoto'
 
+function statusColor(s) {
+  const n = (s ?? '').toUpperCase().replace(/_/g, ' ')
+  if (n === 'IN FLIGHT') return 'var(--pos)'
+  if (n === 'CANCELLED' || n === 'DELAYED') return 'var(--warn)'
+  return 'var(--mute)'
+}
+
 export default function IdentityPanel() {
-  const { currentAircraft } = useContext(AircraftContext)
+  const { currentAircraft, enrichment } = useContext(AircraftContext)
 
   if (!currentAircraft) {
     return (
@@ -20,7 +27,7 @@ export default function IdentityPanel() {
   const registration = currentAircraft.registration || null
   const aircraftType = currentAircraft.aircraft_type || null
   const operator = currentAircraft.operator || null
-  const status = currentAircraft.status || null
+  const status = enrichment?.status || null
   const metaParts = [operator, aircraftType].filter(Boolean)
 
   return (
@@ -37,7 +44,11 @@ export default function IdentityPanel() {
           )}
         </div>
         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          {status && <span className="tag">{status.toUpperCase()}</span>}
+          {status && (
+            <span className="tag" style={{ background: statusColor(status) }}>
+              {status.toUpperCase().replace(/_/g, ' ')}
+            </span>
+          )}
           <span className="icao">
             ICAO {currentAircraft.hex?.toUpperCase()}
             {registration && ` · ${registration}`}

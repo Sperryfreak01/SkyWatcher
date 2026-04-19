@@ -39,33 +39,6 @@ function RouteTrack({ progress }) {
   )
 }
 
-function StatusBadge({ status }) {
-  if (!status) return null
-  const normalized = status.toUpperCase()
-  const color = normalized === 'IN_FLIGHT' || normalized === 'IN FLIGHT'
-    ? 'var(--pos)'
-    : normalized === 'CANCELLED' || normalized === 'DELAYED'
-    ? 'var(--warn)'
-    : 'var(--mute)'
-  const label = normalized.replace('_', ' ')
-  return (
-    <span
-      style={{
-        padding: '2px 7px',
-        fontFamily: 'var(--mono)',
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        color: 'var(--surface)',
-        background: color,
-        display: 'inline-block',
-      }}
-    >
-      {label}
-    </span>
-  )
-}
-
 function airportCode(v) {
   if (!v) return null
   if (typeof v === 'string') return v
@@ -89,7 +62,7 @@ export default function RoutePanel() {
     )
   }
 
-  const { origin: rawOrigin, destination: rawDest, status, progress_percent } = enrichment ?? {}
+  const { origin: rawOrigin, destination: rawDest, progress_percent } = enrichment ?? {}
   const origin = airportCode(rawOrigin)
   const destination = airportCode(rawDest)
   const originCity = airportCity(rawOrigin)
@@ -120,9 +93,8 @@ export default function RoutePanel() {
         </div>
       </div>
 
-      <div className="route-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>{Math.round(progress * 100)}% complete</span>
-        {status && <StatusBadge status={status} />}
+      <div className="route-meta">
+        {Math.round(progress * 100)}% complete
       </div>
     </div>
   )
