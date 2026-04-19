@@ -168,6 +168,11 @@ body { transition: background 0.25s var(--ease), color 0.25s var(--ease); }
   font-family: var(--mono); font-size: 10px; font-weight: 700;
   letter-spacing: 0.12em; color: var(--pos);
 }
+.quota-badge {
+  font-family: var(--mono); font-size: 10px; color: var(--mute);
+  letter-spacing: 0.08em;
+}
+.quota-reset { color: var(--mute-2); }
 
 /* Theme toggle */
 .theme-toggle {
