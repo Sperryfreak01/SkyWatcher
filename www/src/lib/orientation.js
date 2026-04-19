@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 /**
  * React hook to access device orientation (compass heading).
- * Handles iOS permission request logic.
+ * Handles iOS permission request logic and Android 'absolute' orientation.
  */
 export function useDeviceOrientation() {
   const [heading, setHeading] = useState(0)
@@ -11,27 +11,26 @@ export function useDeviceOrientation() {
 
   // Check if API is available on mount
   useEffect(() => {
-    if (window.DeviceOrientationEvent) {
+    if (window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent) {
       setIsSupported(true)
     }
   }, [])
 
   const handleOrientation = useCallback((event) => {
-    // webkitCompassHeading is non-standard but widely supported on iOS Safari
-    const h = event.webkitCompassHeading || (360 - event.alpha)
+    // 1. iOS Safari non-standard property
+    // 2. Android absolute alpha (if available)
+    // 3. Standard alpha (may be relative to load direction)
+    const h = event.webkitCompassHeading || event.alpha
     if (h !== undefined && h !== null) {
-      setHeading(h)
+      // For standard/absolute alpha, we need to invert to get CW rotation from North
+      const correctedHeading = event.webkitCompassHeading ? h : (360 - h)
+      setHeading(correctedHeading)
     }
   }, [])
 
   const requestPermission = async () => {
-    if (!window.DeviceOrientationEvent) {
-      setPermissionState('denied')
-      return false
-    }
-
     // iOS 13+ requires explicit permission
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const state = await DeviceOrientationEvent.requestPermission()
         setPermissionState(state)
@@ -44,8 +43,12 @@ export function useDeviceOrientation() {
         setPermissionState('denied')
       }
     } else {
-      // Non-iOS or older iOS
-      window.addEventListener('deviceorientation', handleOrientation, true)
+      // Non-iOS or older iOS: listen for absolute first (Android), then fallback
+      if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true)
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation, true)
+      }
       setPermissionState('granted')
       return true
     }
@@ -56,6 +59,7 @@ export function useDeviceOrientation() {
   useEffect(() => {
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation, true)
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true)
     }
   }, [handleOrientation])
 

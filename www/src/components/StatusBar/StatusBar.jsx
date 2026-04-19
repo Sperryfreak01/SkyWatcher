@@ -1,7 +1,6 @@
 import { useContext } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 import { SettingsContext } from '../../contexts/SettingsContext'
-import { useDeviceOrientation } from '../../lib/orientation'
 
 function StarIcon() {
   return (
@@ -65,8 +64,8 @@ function ThemeToggle() {
   )
 }
 
-function OrientationToggle() {
-  const { isSupported, permissionState, requestPermission } = useDeviceOrientation()
+function OrientationToggle({ orientation }) {
+  const { isSupported, permissionState, requestPermission } = orientation
 
   if (!isSupported) return null
 
@@ -88,7 +87,7 @@ function OrientationToggle() {
   )
 }
 
-export default function StatusBar() {
+export default function StatusBar({ orientation }) {
   const { visibleAircraft, pollingStatus } = useContext(AircraftContext)
 
   return (
@@ -117,7 +116,7 @@ export default function StatusBar() {
       </div>
 
       <div className="statusbar-right">
-        <OrientationToggle />
+        <OrientationToggle orientation={orientation} />
         <ThemeToggle />
       </div>
     </div>

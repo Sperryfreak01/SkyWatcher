@@ -66,7 +66,8 @@ function formatDistanceKm(m) {
 
 function AppShell() {
   useAdsbPoller()
-  const { heading } = useDeviceOrientation()
+  const orientation = useDeviceOrientation()
+  const { heading } = orientation
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
   const { chartVariant, updateSettings } = useContext(SettingsContext)
@@ -76,7 +77,7 @@ function AppShell() {
 
   return (
     <div className="app">
-      <StatusBar />
+      <StatusBar orientation={orientation} />
 
       {showWeather ? (
         <WeatherPanel />
