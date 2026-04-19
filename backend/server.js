@@ -320,6 +320,9 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       return res.status(faRes.status).json({ error: 'fa_upstream_error', status: faRes.status });
     }
 
+    // Increment quota AFTER successful response — ensures failed calls don't consume budget.
+    // Concurrent bursts can still race (async disk I/O), but at single-user scale this 
+    // is an acceptable trade-off vs. billing for 4xx/5xx errors.
     await incrementQuota();
 
     const faData = await faRes.json();
