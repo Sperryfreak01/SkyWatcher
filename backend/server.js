@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile, rename } from 'fs/promises';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,6 +10,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const FA_DAILY_QUOTA = parseInt(process.env.FA_DAILY_QUOTA ?? '100', 10);
+const FA_MONTHLY_BUDGET = parseFloat(process.env.FA_MONTHLY_BUDGET ?? '9.50');
+
+// Effective daily ceiling is 95% of the configured limit
+const FA_DAILY_SOFT_LIMIT = Math.floor(FA_DAILY_QUOTA * 0.95);
+
+const QUOTA_FILE = resolve(__dirname, 'quota.json');
 
 // Mutable runtime config — can be updated via POST /api/setup
 const runtimeConfig = {
@@ -25,22 +31,45 @@ const runtimeConfig = {
 /** @type {Map<string, { data: object, expiresAt: number }>} */
 const faCache = new Map();
 
-// ─── Daily quota tracker ─────────────────────────────────────────────────────
+// ─── Daily quota tracker (persisted to quota.json) ───────────────────────────
 
 const quota = {
   count: 0,
   date: new Date().toDateString(),
 };
 
+async function loadQuota() {
+  try {
+    const raw = await readFile(QUOTA_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    if (saved.date === new Date().toDateString()) {
+      quota.count = saved.count ?? 0;
+      quota.date = saved.date;
+    }
+  } catch {
+    // File absent or unreadable — start fresh
+  }
+}
+
+async function persistQuota() {
+  const tmp = `${QUOTA_FILE}.tmp`;
+  try {
+    await writeFile(tmp, JSON.stringify({ date: quota.date, count: quota.count }), 'utf8');
+    await rename(tmp, QUOTA_FILE);
+  } catch (err) {
+    console.error('[quota] Failed to persist quota state:', err.message);
+  }
+}
+
 function getQuotaState() {
   const today = new Date().toDateString();
   if (quota.date !== today) {
     quota.count = 0;
     quota.date = today;
+    persistQuota();
   }
-  const remaining = Math.max(0, FA_DAILY_QUOTA - quota.count);
+  const remaining = Math.max(0, FA_DAILY_SOFT_LIMIT - quota.count);
 
-  // Midnight local time for resetsAt
   const now = new Date();
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0);
@@ -49,14 +78,51 @@ function getQuotaState() {
     used: quota.count,
     remaining,
     limit: FA_DAILY_QUOTA,
+    softLimit: FA_DAILY_SOFT_LIMIT,
     resetsAt: midnight.toISOString(),
   };
 }
 
-function incrementQuota() {
-  // Ensure date is current before incrementing
-  getQuotaState();
+async function incrementQuota() {
+  getQuotaState(); // ensure date is current
   quota.count += 1;
+  await persistQuota();
+}
+
+// ─── Monthly budget tracker (via /account/usage) ─────────────────────────────
+
+const faUsageState = {
+  total_cost: null,
+  total_calls: null,
+  last_polled_at: null,
+};
+
+async function pollFaUsage() {
+  const apiKey = process.env.FLIGHTAWARE_API_KEY;
+  if (!apiKey) return;
+
+  try {
+    const res = await fetch('https://aeroapi.flightaware.com/aeroapi/account/usage', {
+      headers: { 'x-apikey': apiKey },
+    });
+    if (!res.ok) {
+      console.error(`[fa-usage] /account/usage returned HTTP ${res.status}`);
+      return;
+    }
+    const data = await res.json();
+    faUsageState.total_cost = data.total_cost ?? null;
+    faUsageState.total_calls = data.total_calls ?? null;
+    faUsageState.last_polled_at = new Date().toISOString();
+    console.log(`[fa-usage] Billing period: $${faUsageState.total_cost} / $${FA_MONTHLY_BUDGET} (${faUsageState.total_calls} calls)`);
+  } catch (err) {
+    console.error('[fa-usage] Poll failed:', err.message);
+    // Non-blocking — monthly ceiling is skipped when total_cost is null
+  }
+}
+
+function isMonthlyBudgetExceeded() {
+  if (faUsageState.total_cost === null) return false; // fail-open
+  return faUsageState.total_cost >= FA_MONTHLY_BUDGET * 0.95;
 }
 
 // ─── Express setup ───────────────────────────────────────────────────────────
@@ -99,7 +165,7 @@ app.get('/api/enrich/:callsign', async (req, res) => {
 
   const callsign = req.params.callsign.trim().toUpperCase();
 
-  // Check cache first
+  // Cache check first — hits cost $0 and must be served even when budget is exhausted
   const cached = faCache.get(callsign);
   if (cached && cached.expiresAt > Date.now()) {
     return res.json(cached.data);
@@ -110,7 +176,16 @@ app.get('/api/enrich/:callsign', async (req, res) => {
     faCache.delete(callsign);
   }
 
-  // Check quota
+  // Monthly budget ceiling (blocks live FA calls only, not cache hits)
+  if (isMonthlyBudgetExceeded()) {
+    return res.status(429).json({
+      error: 'monthly_budget_exceeded',
+      total_cost: faUsageState.total_cost,
+      monthly_budget: FA_MONTHLY_BUDGET,
+    });
+  }
+
+  // Daily quota check (inner gate)
   const state = getQuotaState();
   if (state.remaining <= 0) {
     return res.status(429).json({ error: 'quota_exhausted', remaining: 0 });
@@ -128,7 +203,7 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       return res.status(faRes.status).json({ error: 'fa_upstream_error', status: faRes.status });
     }
 
-    incrementQuota();
+    await incrementQuota();
 
     const faData = await faRes.json();
 
@@ -148,7 +223,7 @@ app.get('/api/enrich/:callsign', async (req, res) => {
 
     // Cache active/completed flights for 24h; cache scheduled flights for only
     // 5 minutes so they refresh once the aircraft departs.
-    const isActive = ['active', 'completed'].includes(payload.status?.toLowerCase())
+    const isActive = ['active', 'completed'].includes(payload.status?.toLowerCase());
     faCache.set(callsign, {
       data: payload,
       expiresAt: Date.now() + (isActive ? 24 * 60 * 60 * 1000 : 5 * 60 * 1000),
@@ -171,6 +246,17 @@ app.get('/health', (_req, res) => {
 
 app.get('/api/quota', (_req, res) => {
   return res.json(getQuotaState());
+});
+
+// ─── GET /api/fa-usage ────────────────────────────────────────────────────────
+
+app.get('/api/fa-usage', (_req, res) => {
+  return res.json({
+    total_cost: faUsageState.total_cost,
+    total_calls: faUsageState.total_calls,
+    monthly_budget: FA_MONTHLY_BUDGET,
+    last_polled_at: faUsageState.last_polled_at,
+  });
 });
 
 // ─── GET /api/config ──────────────────────────────────────────────────────────
@@ -223,6 +309,8 @@ app.post('/api/setup', async (req, res) => {
       console.error('[setup] Failed to persist FA key to .env.local:', writeErr.message);
       // Non-fatal — key is set in memory even if file write fails
     }
+    // Seed FA usage state now that we have a key
+    pollFaUsage();
   }
 
   return res.json({
@@ -240,9 +328,14 @@ app.post('/api/setup', async (req, res) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
+await loadQuota();
+await pollFaUsage();
+setInterval(pollFaUsage, 60 * 60 * 1000);
+
 app.listen(PORT, () => {
   console.log(`[skywatcher-proxy] Listening on port ${PORT}`);
   console.log(`[skywatcher-proxy] FA key configured: ${Boolean(process.env.FLIGHTAWARE_API_KEY)}`);
   console.log(`[skywatcher-proxy] ADSB_URL: ${runtimeConfig.adsbUrl}`);
-  console.log(`[skywatcher-proxy] Daily quota limit: ${FA_DAILY_QUOTA}`);
+  console.log(`[skywatcher-proxy] Daily quota: ${FA_DAILY_QUOTA} (soft limit: ${FA_DAILY_SOFT_LIMIT})`);
+  console.log(`[skywatcher-proxy] Monthly budget: $${FA_MONTHLY_BUDGET} (ceiling: $${(FA_MONTHLY_BUDGET * 0.95).toFixed(2)})`);
 });
