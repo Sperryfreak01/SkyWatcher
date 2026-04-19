@@ -12,14 +12,31 @@ import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
 
 export default function App() {
+  const { observer, updateObserver } = useContext(SettingsContext)
   // null = checking, true = configured, false = needs first-run
   const [configured, setConfigured] = useState(null)
 
   useEffect(() => {
     fetch('/api/config')
       .then(r => r.json())
-      .then(cfg => setConfigured(Boolean(cfg.lat && cfg.lon && cfg.adsbUrl)))
+      .then(cfg => {
+        const isConfigured = Boolean(cfg.lat && cfg.lon && cfg.adsbUrl)
+        setConfigured(isConfigured)
+
+        // If server is configured but local settings are empty, sync them.
+        // This handles new browser sessions (incognito, separate device)
+        // by inheriting the server's coordinates automatically.
+        if (isConfigured && observer.lat === null) {
+          updateObserver({
+            lat: parseFloat(cfg.lat),
+            lon: parseFloat(cfg.lon),
+            elev: parseFloat(cfg.elev),
+            obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
+          })
+        }
+      })
       .catch(() => setConfigured(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (configured === null) return null

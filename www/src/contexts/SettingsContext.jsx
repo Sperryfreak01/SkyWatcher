@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react'
+import { createContext, useState, useEffect, useCallback } from 'react'
 
 const STORAGE_KEY = 'skywatcher-settings'
 
@@ -35,16 +35,16 @@ export function SettingsProvider({ children }) {
     }
   }, [settings.theme])
 
-  function updateSettings(patch) {
+  const updateSettings = useCallback((patch) => {
     setSettings(prev => ({ ...prev, ...patch }))
-  }
+  }, [])
 
-  function updateObserver(patch) {
+  const updateObserver = useCallback((patch) => {
     setSettings(prev => ({
       ...prev,
       observer: { ...prev.observer, ...patch },
     }))
-  }
+  }, [])
 
   return (
     <SettingsContext.Provider value={{ ...settings, updateSettings, updateObserver }}>
