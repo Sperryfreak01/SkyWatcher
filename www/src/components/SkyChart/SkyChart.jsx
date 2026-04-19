@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
 
-// Props: { aircraft: Array<{az, el, hex, callsign, distance3d}>, variant: 'classic'|'dome', loading: bool }
-export default function SkyChart({ aircraft = [], variant = 'classic', loading = false }) {
+// Props: { aircraft: Array<{az, el, hex, callsign, distance3d}>, variant: 'classic'|'dome', loading: bool, rotation: number }
+export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0 }) {
   if (loading) {
     return <LoadingSweep />
   }
 
   if (aircraft.length === 0) {
-    return <EmptyChart variant={variant} />
+    return <EmptyChart variant={variant} rotation={rotation} />
   }
 
   return variant === 'dome' ? (
-    <DomeChart aircraft={aircraft} />
+    <DomeChart aircraft={aircraft} rotation={rotation} />
   ) : (
-    <ClassicChart aircraft={aircraft} />
+    <ClassicChart aircraft={aircraft} rotation={rotation} />
   )
 }
 
@@ -34,7 +34,7 @@ function azElToXY(az, el, cx, cy, r) {
 }
 
 // ─── Classic polar chart ─────────────────────────────────────────────────────
-function ClassicChart({ aircraft }) {
+function ClassicChart({ aircraft, rotation = 0 }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -46,7 +46,7 @@ function ClassicChart({ aircraft }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block' }}
+      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
     >
       <defs>
         <radialGradient id="sc-classic-bg" cx="50%" cy="50%" r="50%">
@@ -159,7 +159,7 @@ function ClassicChart({ aircraft }) {
 }
 
 // ─── Dome chart (visual tweak: darker toward edges, radial gradient) ─────────
-function DomeChart({ aircraft }) {
+function DomeChart({ aircraft, rotation = 0 }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -171,7 +171,7 @@ function DomeChart({ aircraft }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block' }}
+      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
     >
       <defs>
         <radialGradient id="sc-dome-bg" cx="50%" cy="50%" r="50%">
@@ -439,7 +439,7 @@ function LoadingSweep() {
 }
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
-function EmptyChart({ variant }) {
+function EmptyChart({ variant, rotation = 0 }) {
   const chartClass = `sky-chart sky-chart--${variant} sky-chart--empty`
 
   return (
@@ -448,7 +448,7 @@ function EmptyChart({ variant }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block' }}
+      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
     >
       <defs>
         <radialGradient id="sc-empty-bg" cx="50%" cy="50%" r="50%">
