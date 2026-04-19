@@ -215,7 +215,7 @@ function Completion() {
 }
 
 export default function FirstRun({ onComplete }) {
-  const { updateObserver } = useContext(SettingsContext)
+  const { updateObserver, captureHomeObserver } = useContext(SettingsContext)
 
   // Step state
   const [step, setStep] = useState(1)
@@ -284,6 +284,7 @@ export default function FirstRun({ onComplete }) {
         elev: parseFloat(elev),
         obstructionAngle: parseFloat(obstructionAngle),
       })
+      captureHomeObserver()
 
       // Brief "saved" pause, then show completion screen, then fire onComplete
       setTimeout(() => {

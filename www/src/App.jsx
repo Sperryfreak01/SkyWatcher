@@ -14,7 +14,7 @@ import StatusBar from './components/StatusBar/StatusBar'
 import { useGeolocation } from './lib/geolocation'
 
 export default function App() {
-  const { observer, updateObserver } = useContext(SettingsContext)
+  const { observer, updateObserver, captureHomeObserver } = useContext(SettingsContext)
   // null = checking, true = configured, false = needs first-run
   const [configured, setConfigured] = useState(null)
 
@@ -35,6 +35,7 @@ export default function App() {
             elev: parseFloat(cfg.elev),
             obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
           })
+          captureHomeObserver()
         }
       })
       .catch(() => setConfigured(false))
@@ -71,8 +72,20 @@ function AppShell() {
   const { heading } = orientation
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
-  const { chartVariant, updateSettings, fieldModeEnabled } = useContext(SettingsContext)
+  const { chartVariant, updateSettings, updateObserver, fieldModeEnabled, homeObserver } = useContext(SettingsContext)
   const geo = useGeolocation(fieldModeEnabled)
+
+  useEffect(() => {
+    if (fieldModeEnabled && geo.position) {
+      updateObserver({
+        lat: geo.position.lat,
+        lon: geo.position.lon,
+        obstructionAngle: 0,
+      })
+    } else if (!fieldModeEnabled && homeObserver) {
+      updateObserver(homeObserver)
+    }
+  }, [fieldModeEnabled, geo.position, homeObserver, updateObserver])
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
