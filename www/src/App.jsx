@@ -11,7 +11,7 @@ import RoutePanel from './components/RoutePanel'
 import TransponderPanel from './components/TransponderPanel'
 import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
-import { useGeolocation } from './lib/geolocation'
+import { useGeolocation, GEOLOCATION_FAILURE_THRESHOLD } from './lib/geolocation'
 
 export default function App() {
   const { observer, updateObserver, captureHomeObserver } = useContext(SettingsContext)
@@ -70,6 +70,8 @@ function AppShell() {
   useAdsbPoller()
   const orientation = useDeviceOrientation()
   const { heading } = orientation
+  // heading drives compass rotation in both Home and Field Mode — no change
+  // needed here; Field Mode GPS position is handled via observer in context
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
   const { chartVariant, updateSettings, updateObserver, fieldModeEnabled, homeObserver } = useContext(SettingsContext)
@@ -83,6 +85,8 @@ function AppShell() {
         obstructionAngle: 0,
       })
     } else if (!fieldModeEnabled && homeObserver) {
+      // homeObserver guard is intentional — null means first-run setup hasn't
+      // completed yet, so there's nothing to restore
       updateObserver(homeObserver)
     }
   }, [fieldModeEnabled, geo.position, homeObserver, updateObserver])
@@ -90,7 +94,7 @@ function AppShell() {
   const hasWarnedRef = useRef(false)
 
   useEffect(() => {
-    if (fieldModeEnabled && geo.consecutiveFailures >= 2) {
+    if (fieldModeEnabled && geo.consecutiveFailures >= GEOLOCATION_FAILURE_THRESHOLD) {
       if (!hasWarnedRef.current) {
         console.warn('[field-mode] GPS signal lost; reverting to Home Mode')
         hasWarnedRef.current = true

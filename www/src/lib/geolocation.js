@@ -3,7 +3,19 @@ import { useState, useEffect, useRef } from 'react'
 const GEO_OPTIONS = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
 const POLL_INTERVAL = 3000
 const RETRY_DELAYS = [500, 1000]
+export const GEOLOCATION_FAILURE_THRESHOLD = 2
 
+/**
+ * React hook for live geolocation with retry logic and permission tracking.
+ *
+ * @param {boolean} enabled  Enable/disable geolocation polling.
+ * @returns {{ position: {lat,lon,accuracy}|null, isSupported: boolean,
+ *   isDenied: boolean, consecutiveFailures: number, error: string|null }}
+ *
+ * Polling interval: 3s. Permission-denied retry: [500ms, 1000ms] backoff.
+ * `isDenied` is set permanently after retries are exhausted — UI should hide
+ * the Field Mode toggle at that point. Cleanup runs on unmount or disable.
+ */
 export function useGeolocation(enabled) {
   const isSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator
 
@@ -74,6 +86,7 @@ export function useGeolocation(enabled) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
       clearRetryTimeout()
+      retryCountRef.current = 0
     }
   }, [enabled, isSupported])
 
