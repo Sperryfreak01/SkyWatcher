@@ -278,14 +278,12 @@ export default function FirstRun({ onComplete }) {
       setFaKey('')
       setSubmitStatus('saved')
 
-      // Persist observer settings to context
       updateObserver({
         lat: parseFloat(lat),
         lon: parseFloat(lon),
         elev: parseFloat(elev),
         obstructionAngle: parseFloat(obstructionAngle),
       })
-      localStorage.setItem('skywatcher-configured', 'true')
 
       // Brief "saved" pause, then show completion screen, then fire onComplete
       setTimeout(() => {
