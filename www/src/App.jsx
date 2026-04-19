@@ -28,15 +28,16 @@ export default function App() {
         // by inheriting the server's coordinates automatically.
         if (isConfigured && observer.lat === null) {
           updateObserver({
-            lat: String(cfg.lat),
-            lon: String(cfg.lon),
-            elev: String(cfg.elev),
-            obstructionAngle: String(cfg.obstructionAngle ?? '14.2'),
+            lat: parseFloat(cfg.lat),
+            lon: parseFloat(cfg.lon),
+            elev: parseFloat(cfg.elev),
+            obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
           })
         }
       })
       .catch(() => setConfigured(false))
-  }, [observer.lat, updateObserver])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (configured === null) return null
 
