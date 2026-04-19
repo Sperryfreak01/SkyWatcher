@@ -24,7 +24,7 @@
   color-scheme: light;
 }
 
-:root[data-theme="dark"],
+/* DARK MODE: Activated via system preference (if data-theme is not light) OR explicit data-theme="dark" */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #14171a;
@@ -43,6 +43,7 @@
     color-scheme: dark;
   }
 }
+
 :root[data-theme="dark"] {
   --bg: #14171a;
   --surface: #1a1e22;
