@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { writeFile, readFile, rename, mkdir } from 'fs/promises';
+import { writeFile, readFile, rename, mkdir, unlink, chmod } from 'fs/promises';
 import { resolve } from 'path';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
@@ -61,9 +61,6 @@ async function loadSetup() {
     if (!runtimeConfig.elev   && saved.elev)    runtimeConfig.elev = saved.elev;
     if (saved.obstructionAngle) runtimeConfig.obstructionAngle = saved.obstructionAngle;
     console.log('[setup] Restored config from setup.json');
-    // If the on-disk config is complete, mark setup as already done so the
-    // endpoint stays locked even across restarts.
-    if (isConfigComplete()) setupCompleted = true;
   } catch {
     // File absent on first start — use env vars (or null)
   }
@@ -81,6 +78,9 @@ async function loadSetup() {
   } catch {
     /* absent = no key saved */
   }
+
+  // Check after all sources are loaded — fires for env-var-only deploys too.
+  if (isConfigComplete()) setupCompleted = true;
 }
 
 async function persistSetup() {
@@ -97,6 +97,7 @@ async function persistSetup() {
     return true;
   } catch (err) {
     console.error('[setup] Failed to persist setup.json:', err.message);
+    try { await unlink(tmp); } catch { /* already gone */ }
     return false;
   }
 }
@@ -124,10 +125,13 @@ function validateAdsbUrl(rawUrl) {
     host === '::1' ||
     host === '[::1]' ||
     host === '0.0.0.0' ||
+    host === '::ffff:127.0.0.1' ||
+    host === '169.254.169.254' || // cloud metadata endpoint
+    host === '169.254.170.2' ||   // ECS task metadata
     /^127\./.test(host);
 
   if (loopback) {
-    return 'adsbUrl may not point at loopback';
+    return 'adsbUrl may not point at loopback or link-local addresses';
   }
 
   return null;
@@ -307,8 +311,10 @@ app.get('/api/enrich/:callsign', async (req, res) => {
   try {
     const faUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(callsign)}`;
 
-    // Increment quota BEFORE the outbound call to close the TOCTOU window —
-    // better to slightly over-count than to race past the daily ceiling.
+    // Increment quota BEFORE the outbound call — prevents billing multiple
+    // calls when a fetch is already in-flight. Concurrent bursts at exactly the
+    // limit can still race (async disk I/O is not atomic), but at single-user
+    // scale this is an acceptable trade-off vs. a full reserve-ticket scheme.
     await incrementQuota();
 
     const faRes = await fetch(faUrl, {
@@ -447,24 +453,20 @@ app.post('/api/setup', async (req, res) => {
     return res.status(400).json({ error: 'invalid_fields', messages: coordErrors });
   }
 
-  // Update non-secret runtime config and persist for container restarts
-  runtimeConfig.adsbUrl = adsbUrl;
-  runtimeConfig.lat = String(lat);
-  runtimeConfig.lon = String(lon);
-  runtimeConfig.elev = String(elev);
-  runtimeConfig.obstructionAngle = obstructionAngle != null ? String(obstructionAngle) : runtimeConfig.obstructionAngle;
-  const persisted = await persistSetup();
-
-  // Handle FA key — never log, never return
+  // Handle FA key FIRST — never log, never return.
+  // Writing the key before persistSetup() ensures that a key-write failure
+  // cannot leave setup.json on disk and permanently lock the endpoint.
   const faKeyProvided = typeof faKey === 'string' && faKey.trim().length > 0;
   const trimmedKey = faKeyProvided ? faKey.trim() : null;
   if (faKeyProvided) {
     process.env.FLIGHTAWARE_API_KEY = trimmedKey;
     try {
       await writeFile(FA_KEY_FILE, `FLIGHTAWARE_API_KEY=${trimmedKey}\n`, { mode: 0o600 });
+      await chmod(FA_KEY_FILE, 0o600);
     } catch (writeErr) {
       console.error('[setup] Failed to persist FA key to .env.local:', writeErr.message);
-      // Key is in memory for this session but won't survive a restart — tell the client
+      // Key is in memory for this session but won't survive a restart.
+      // Do NOT persist setup.json — operator must retry once permissions are fixed.
       return res.status(507).json({
         error: 'key_not_persisted',
         message: 'FA key accepted but could not be saved to disk. Check container permissions.',
@@ -472,6 +474,14 @@ app.post('/api/setup', async (req, res) => {
     }
     pollFaUsage();
   }
+
+  // Update non-secret runtime config and persist for container restarts.
+  runtimeConfig.adsbUrl = adsbUrl;
+  runtimeConfig.lat = String(lat);
+  runtimeConfig.lon = String(lon);
+  runtimeConfig.elev = String(elev);
+  runtimeConfig.obstructionAngle = obstructionAngle != null ? String(obstructionAngle) : runtimeConfig.obstructionAngle;
+  const persisted = await persistSetup();
 
   // Lock the endpoint once we've successfully written setup.json.
   if (persisted) setupCompleted = true;
