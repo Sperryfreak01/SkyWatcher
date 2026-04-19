@@ -371,10 +371,24 @@ app.post('/api/setup', async (req, res) => {
   if (elev === undefined || elev === null || elev === '') missing.push('elev');
 
   if (missing.length > 0) {
-    return res.status(400).json({
-      error: 'missing_required_fields',
-      fields: missing,
-    });
+    return res.status(400).json({ error: 'missing_required_fields', fields: missing });
+  }
+
+  // Validate coordinate ranges
+  const latNum = parseFloat(lat);
+  const lonNum = parseFloat(lon);
+  const elevNum = parseFloat(elev);
+  const angleNum = obstructionAngle != null ? parseFloat(obstructionAngle) : null;
+
+  const coordErrors = [];
+  if (isNaN(latNum) || latNum < -90  || latNum > 90)    coordErrors.push('lat must be -90 to 90');
+  if (isNaN(lonNum) || lonNum < -180 || lonNum > 180)   coordErrors.push('lon must be -180 to 180');
+  if (isNaN(elevNum) || elevNum < 0  || elevNum > 50000) coordErrors.push('elev must be 0–50000 ft');
+  if (angleNum !== null && (isNaN(angleNum) || angleNum < 0 || angleNum > 90))
+    coordErrors.push('obstructionAngle must be 0–90°');
+
+  if (coordErrors.length > 0) {
+    return res.status(400).json({ error: 'invalid_fields', messages: coordErrors });
   }
 
   // Update non-secret runtime config and persist for container restarts
@@ -395,6 +409,11 @@ app.post('/api/setup', async (req, res) => {
       await writeFile(envPath, `FLIGHTAWARE_API_KEY=${trimmedKey}\n`, { mode: 0o600 });
     } catch (writeErr) {
       console.error('[setup] Failed to persist FA key to .env.local:', writeErr.message);
+      // Key is in memory for this session but won't survive a restart — tell the client
+      return res.status(507).json({
+        error: 'key_not_persisted',
+        message: 'FA key accepted but could not be saved to disk. Check container permissions.',
+      });
     }
     pollFaUsage();
   }
