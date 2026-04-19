@@ -44,7 +44,25 @@
   }
 }
 
-/* 2. EXPLICIT DARK OVERRIDE */
+/* 2. EXPLICIT LIGHT OVERRIDE (for dark system preference) */
+:root[data-theme="light"] {
+  --bg: #f4f2ed;
+  --surface: #ffffff;
+  --surface-2: #edeae3;
+  --ink: #1a1c1f;
+  --ink-2: #3a3d42;
+  --mute: #7a7d82;
+  --mute-2: #a8aaad;
+  --line: #d4d1c9;
+  --line-2: #e6e3db;
+  --acc: #c85a2a;
+  --acc-2: #1e5a6e;
+  --pos: #2a6b3a;
+  --warn: #b8771a;
+  color-scheme: light;
+}
+
+/* 3. EXPLICIT DARK OVERRIDE */
 :root[data-theme="dark"] {
   --bg: #14171a;
   --surface: #1a1e22;

@@ -46,114 +46,116 @@ function ClassicChart({ aircraft, rotation = 0 }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
+      style={{ display: 'block' }}
     >
-      <defs>
-        <radialGradient id="sc-classic-bg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="var(--surface)" />
-          <stop offset="100%" stopColor="var(--surface-2)" />
-        </radialGradient>
-      </defs>
+      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+        <defs>
+          <radialGradient id="sc-classic-bg" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--surface)" />
+            <stop offset="100%" stopColor="var(--surface-2)" />
+          </radialGradient>
+        </defs>
 
-      {/* Sky disk */}
-      <circle cx={CX} cy={CY} r={R} fill="url(#sc-classic-bg)" stroke="var(--line)" strokeWidth="1" />
+        {/* Sky disk */}
+        <circle cx={CX} cy={CY} r={R} fill="url(#sc-classic-bg)" stroke="var(--line)" strokeWidth="1" />
 
-      {/* Elevation rings at 30° and 60° — dashed */}
-      {[30, 60].map((deg) => {
-        const rr = R * (1 - deg / 90)
-        return (
-          <circle
-            key={deg}
-            cx={CX} cy={CY} r={rr}
-            fill="none"
-            stroke="var(--line-2)"
-            strokeWidth="0.75"
-            strokeDasharray="3 4"
-          />
-        )
-      })}
+        {/* Elevation rings at 30° and 60° — dashed */}
+        {[30, 60].map((deg) => {
+          const rr = R * (1 - deg / 90)
+          return (
+            <circle
+              key={deg}
+              cx={CX} cy={CY} r={rr}
+              fill="none"
+              stroke="var(--line-2)"
+              strokeWidth="0.75"
+              strokeDasharray="3 4"
+            />
+          )
+        })}
 
-      {/* Tick marks around rim */}
-      {Array.from({ length: 36 }, (_, i) => i * 10).map((a) => {
-        const rad = (a * Math.PI) / 180
-        const long = a % 30 === 0
-        const r1 = R - (long ? 8 : 4)
-        const x1 = CX + Math.sin(rad) * r1
-        const y1 = CY - Math.cos(rad) * r1
-        const x2 = CX + Math.sin(rad) * R
-        const y2 = CY - Math.cos(rad) * R
-        return (
-          <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="var(--mute-2)" strokeWidth={long ? 1 : 0.5} opacity={long ? 0.7 : 0.4} />
-        )
-      })}
+        {/* Tick marks around rim */}
+        {Array.from({ length: 36 }, (_, i) => i * 10).map((a) => {
+          const rad = (a * Math.PI) / 180
+          const long = a % 30 === 0
+          const r1 = R - (long ? 8 : 4)
+          const x1 = CX + Math.sin(rad) * r1
+          const y1 = CY - Math.cos(rad) * r1
+          const x2 = CX + Math.sin(rad) * R
+          const y2 = CY - Math.cos(rad) * R
+          return (
+            <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke="var(--mute-2)" strokeWidth={long ? 1 : 0.5} opacity={long ? 0.7 : 0.4} />
+          )
+        })}
 
-      {/* Cross-hair lines (N-S and E-W axes) — dashed */}
-      {[0, 90].map((a) => {
-        const rad = (a * Math.PI) / 180
-        return (
-          <line key={a}
-            x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
-            x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
-            stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
-          />
-        )
-      })}
+        {/* Cross-hair lines (N-S and E-W axes) — dashed */}
+        {[0, 90].map((a) => {
+          const rad = (a * Math.PI) / 180
+          return (
+            <line key={a}
+              x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
+              x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
+              stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
+            />
+          )
+        })}
 
-      {/* Elevation labels */}
-      {[30, 60].map((deg) => {
-        const rr = R * (1 - deg / 90)
-        return (
-          <g key={deg}>
-            <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+        {/* Elevation labels */}
+        {[30, 60].map((deg) => {
+          const rr = R * (1 - deg / 90)
+          return (
+            <g key={deg}>
+              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+              <text
+                x={CX} y={CY - rr + 2}
+                textAnchor="middle"
+                style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
+              >{deg}°</text>
+            </g>
+          )
+        })}
+
+        {/* Cardinal labels */}
+        {cards.map(({ a, l }) => {
+          const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
+          const isMajor = l.length === 1
+          return (
             <text
-              x={CX} y={CY - rr + 2}
+              key={l}
+              x={tx} y={ty + 3}
               textAnchor="middle"
-              style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
-            >{deg}°</text>
-          </g>
-        )
-      })}
+              dominantBaseline="middle"
+              style={{
+                fontSize: isMajor ? 11 : 9,
+                fontFamily: 'var(--mono)',
+                fill: isMajor ? 'var(--ink-2)' : 'var(--mute)',
+                fontWeight: isMajor ? 700 : 500,
+                letterSpacing: '0.08em',
+              }}
+            >{l}</text>
+          )
+        })}
 
-      {/* Cardinal labels */}
-      {cards.map(({ a, l }) => {
-        const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
-        const isMajor = l.length === 1
-        return (
-          <text
-            key={l}
-            x={tx} y={ty + 3}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{
-              fontSize: isMajor ? 11 : 9,
-              fontFamily: 'var(--mono)',
-              fill: isMajor ? 'var(--ink-2)' : 'var(--mute)',
-              fontWeight: isMajor ? 700 : 500,
-              letterSpacing: '0.08em',
-            }}
-          >{l}</text>
-        )
-      })}
+        {/* Center zenith marker */}
+        <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
+        <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
 
-      {/* Center zenith marker */}
-      <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
-      <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
-
-      {/* Aircraft: render all, closest (index 0) gets primary accent */}
-      {aircraft.map((ac, i) => {
-        const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
-        const isPrimary = i === 0
-        return (
-          <AircraftMarker
-            key={ac.hex || ac.callsign || i}
-            px={px} py={py}
-            callsign={ac.callsign}
-            az={ac.az} el={ac.el}
-            isPrimary={isPrimary}
-          />
-        )
-      })}
+        {/* Aircraft: render all, closest (index 0) gets primary accent */}
+        {aircraft.map((ac, i) => {
+          const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
+          const isPrimary = i === 0
+          return (
+            <AircraftMarker
+              key={ac.hex || ac.callsign || i}
+              px={px} py={py}
+              callsign={ac.callsign}
+              az={ac.az} el={ac.el}
+              isPrimary={isPrimary}
+            />
+          )
+        })}
+      </g>
     </svg>
   )
 }
@@ -171,108 +173,110 @@ function DomeChart({ aircraft, rotation = 0 }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
+      style={{ display: 'block' }}
     >
-      <defs>
-        <radialGradient id="sc-dome-bg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="var(--surface)" />
-          <stop offset="75%" stopColor="var(--surface-2)" />
-          <stop offset="100%" stopColor="var(--bg)" stopOpacity="0.9" />
-        </radialGradient>
-        {/* Dome overlay: darker at horizon (edge), lighter at zenith (center) */}
-        <radialGradient id="sc-dome-overlay" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="transparent" stopOpacity="0" />
-          <stop offset="70%" stopColor="var(--bg)" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="var(--bg)" stopOpacity="0.32" />
-        </radialGradient>
-      </defs>
+      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+        <defs>
+          <radialGradient id="sc-dome-bg" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--surface)" />
+            <stop offset="75%" stopColor="var(--surface-2)" />
+            <stop offset="100%" stopColor="var(--bg)" stopOpacity="0.9" />
+          </radialGradient>
+          {/* Dome overlay: darker at horizon (edge), lighter at zenith (center) */}
+          <radialGradient id="sc-dome-overlay" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="transparent" stopOpacity="0" />
+            <stop offset="70%" stopColor="var(--bg)" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="var(--bg)" stopOpacity="0.32" />
+          </radialGradient>
+        </defs>
 
-      {/* Sky disk */}
-      <circle cx={CX} cy={CY} r={R} fill="url(#sc-dome-bg)" stroke="var(--line)" strokeWidth="1.25" />
-      {/* Dome depth overlay */}
-      <circle cx={CX} cy={CY} r={R} fill="url(#sc-dome-overlay)" />
+        {/* Sky disk */}
+        <circle cx={CX} cy={CY} r={R} fill="url(#sc-dome-bg)" stroke="var(--line)" strokeWidth="1.25" />
+        {/* Dome depth overlay */}
+        <circle cx={CX} cy={CY} r={R} fill="url(#sc-dome-overlay)" />
 
-      {/* Elevation rings at 30° and 60° — dashed */}
-      {[30, 60].map((deg) => {
-        const rr = R * (1 - deg / 90)
-        return (
-          <circle
-            key={deg}
-            cx={CX} cy={CY} r={rr}
-            fill="none"
-            stroke="var(--line-2)"
-            strokeWidth="0.75"
-            strokeDasharray="3 4"
-          />
-        )
-      })}
+        {/* Elevation rings at 30° and 60° — dashed */}
+        {[30, 60].map((deg) => {
+          const rr = R * (1 - deg / 90)
+          return (
+            <circle
+              key={deg}
+              cx={CX} cy={CY} r={rr}
+              fill="none"
+              stroke="var(--line-2)"
+              strokeWidth="0.75"
+              strokeDasharray="3 4"
+            />
+          )
+        })}
 
-      {/* Cross-hair lines — dashed */}
-      {[0, 90].map((a) => {
-        const rad = (a * Math.PI) / 180
-        return (
-          <line key={a}
-            x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
-            x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
-            stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
-          />
-        )
-      })}
+        {/* Cross-hair lines — dashed */}
+        {[0, 90].map((a) => {
+          const rad = (a * Math.PI) / 180
+          return (
+            <line key={a}
+              x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
+              x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
+              stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
+            />
+          )
+        })}
 
-      {/* Elevation labels */}
-      {[30, 60].map((deg) => {
-        const rr = R * (1 - deg / 90)
-        return (
-          <g key={deg}>
-            <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+        {/* Elevation labels */}
+        {[30, 60].map((deg) => {
+          const rr = R * (1 - deg / 90)
+          return (
+            <g key={deg}>
+              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+              <text
+                x={CX} y={CY - rr + 2}
+                textAnchor="middle"
+                style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
+              >{deg}°</text>
+            </g>
+          )
+        })}
+
+        {/* Cardinal labels */}
+        {cards.map(({ a, l }) => {
+          const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
+          const isMajor = l.length === 1
+          return (
             <text
-              x={CX} y={CY - rr + 2}
+              key={l}
+              x={tx} y={ty + 3}
               textAnchor="middle"
-              style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
-            >{deg}°</text>
-          </g>
-        )
-      })}
+              dominantBaseline="middle"
+              style={{
+                fontSize: isMajor ? 11 : 9,
+                fontFamily: 'var(--mono)',
+                fill: isMajor ? 'var(--ink-2)' : 'var(--mute)',
+                fontWeight: isMajor ? 700 : 500,
+                letterSpacing: '0.08em',
+              }}
+            >{l}</text>
+          )
+        })}
 
-      {/* Cardinal labels */}
-      {cards.map(({ a, l }) => {
-        const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
-        const isMajor = l.length === 1
-        return (
-          <text
-            key={l}
-            x={tx} y={ty + 3}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{
-              fontSize: isMajor ? 11 : 9,
-              fontFamily: 'var(--mono)',
-              fill: isMajor ? 'var(--ink-2)' : 'var(--mute)',
-              fontWeight: isMajor ? 700 : 500,
-              letterSpacing: '0.08em',
-            }}
-          >{l}</text>
-        )
-      })}
+        {/* Center zenith marker */}
+        <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
+        <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
 
-      {/* Center zenith marker */}
-      <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
-      <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
-
-      {/* Aircraft */}
-      {aircraft.map((ac, i) => {
-        const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
-        const isPrimary = i === 0
-        return (
-          <AircraftMarker
-            key={ac.hex || ac.callsign || i}
-            px={px} py={py}
-            callsign={ac.callsign}
-            az={ac.az} el={ac.el}
-            isPrimary={isPrimary}
-          />
-        )
-      })}
+        {/* Aircraft */}
+        {aircraft.map((ac, i) => {
+          const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
+          const isPrimary = i === 0
+          return (
+            <AircraftMarker
+              key={ac.hex || ac.callsign || i}
+              px={px} py={py}
+              callsign={ac.callsign}
+              az={ac.az} el={ac.el}
+              isPrimary={isPrimary}
+            />
+          )
+        })}
+      </g>
     </svg>
   )
 }
@@ -448,65 +452,67 @@ function EmptyChart({ variant, rotation = 0 }) {
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       width="100%"
       height="100%"
-      style={{ display: 'block', transform: `rotate(${-rotation}deg)`, transition: 'transform 0.5s ease' }}
+      style={{ display: 'block' }}
     >
-      <defs>
-        <radialGradient id="sc-empty-bg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="var(--surface)" />
-          <stop offset="100%" stopColor="var(--surface-2)" />
-        </radialGradient>
-      </defs>
+      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+        <defs>
+          <radialGradient id="sc-empty-bg" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--surface)" />
+            <stop offset="100%" stopColor="var(--surface-2)" />
+          </radialGradient>
+        </defs>
 
-      {/* Sky disk */}
-      <circle cx={CX} cy={CY} r={R} fill="url(#sc-empty-bg)" stroke="var(--line)" strokeWidth="1" />
+        {/* Sky disk */}
+        <circle cx={CX} cy={CY} r={R} fill="url(#sc-empty-bg)" stroke="var(--line)" strokeWidth="1" />
 
-      {/* Elevation rings */}
-      {[30, 60].map((deg) => {
-        const rr = R * (1 - deg / 90)
-        return (
-          <circle key={deg} cx={CX} cy={CY} r={rr}
-            fill="none" stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="3 4" />
-        )
-      })}
+        {/* Elevation rings */}
+        {[30, 60].map((deg) => {
+          const rr = R * (1 - deg / 90)
+          return (
+            <circle key={deg} cx={CX} cy={CY} r={rr}
+              fill="none" stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="3 4" />
+          )
+        })}
 
-      {/* Cross-hairs */}
-      {[0, 90].map((a) => {
-        const rad = (a * Math.PI) / 180
-        return (
-          <line key={a}
-            x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
-            x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
-            stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
-          />
-        )
-      })}
+        {/* Cross-hairs */}
+        {[0, 90].map((a) => {
+          const rad = (a * Math.PI) / 180
+          return (
+            <line key={a}
+              x1={CX + Math.sin(rad) * R} y1={CY - Math.cos(rad) * R}
+              x2={CX - Math.sin(rad) * R} y2={CY + Math.cos(rad) * R}
+              stroke="var(--line-2)" strokeWidth="0.75" strokeDasharray="2 4"
+            />
+          )
+        })}
 
-      {/* Cardinal labels */}
-      {['N', 'E', 'S', 'W'].map((l, i) => {
-        const a = i * 90
-        const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
-        return (
-          <text key={l} x={tx} y={ty + 3} textAnchor="middle" dominantBaseline="middle"
-            style={{ fontSize: 11, fontFamily: 'var(--mono)', fill: 'var(--ink-2)', fontWeight: 700 }}
-          >{l}</text>
-        )
-      })}
+        {/* Cardinal labels */}
+        {['N', 'E', 'S', 'W'].map((l, i) => {
+          const a = i * 90
+          const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
+          return (
+            <text key={l} x={tx} y={ty + 3} textAnchor="middle" dominantBaseline="middle"
+              style={{ fontSize: 11, fontFamily: 'var(--mono)', fill: 'var(--ink-2)', fontWeight: 700 }}
+            >{l}</text>
+          )
+        })}
 
-      {/* Center */}
-      <circle cx={CX} cy={CY} r="3" fill="var(--ink)" opacity="0.3" />
+        {/* Center */}
+        <circle cx={CX} cy={CY} r="3" fill="var(--ink)" opacity="0.3" />
 
-      {/* No aircraft text */}
-      <text
-        x={CX} y={CY + 20}
-        textAnchor="middle"
-        style={{
-          fontSize: 11,
-          fontFamily: 'var(--mono)',
-          fill: 'var(--mute)',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-        }}
-      >No aircraft</text>
+        {/* No aircraft text */}
+        <text
+          x={CX} y={CY + 20}
+          textAnchor="middle"
+          style={{
+            fontSize: 11,
+            fontFamily: 'var(--mono)',
+            fill: 'var(--mute)',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+          }}
+        >No aircraft</text>
+      </g>
     </svg>
   )
 }
