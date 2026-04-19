@@ -7,7 +7,7 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* LIGHT (default) */
+  /* Default Light Variables */
   --bg: #f4f2ed;
   --surface: #ffffff;
   --surface-2: #edeae3;
@@ -21,10 +21,10 @@
   --acc-2: #1e5a6e;
   --pos: #2a6b3a;
   --warn: #b8771a;
-  color-scheme: light;
+  color-scheme: light dark;
 }
 
-/* DARK MODE: Activated via system preference (if data-theme is not light) OR explicit data-theme="dark" */
+/* 1. AUTO MODE - System Preference */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #14171a;
@@ -40,10 +40,27 @@
     --acc-2: #5eb4c8;
     --pos: #6bb07a;
     --warn: #e0a64a;
-    color-scheme: dark;
   }
 }
 
+/* 2. EXPLICIT LIGHT OVERRIDE */
+:root[data-theme="light"] {
+  --bg: #f4f2ed;
+  --surface: #ffffff;
+  --surface-2: #edeae3;
+  --ink: #1a1c1f;
+  --ink-2: #3a3d42;
+  --mute: #7a7d82;
+  --mute-2: #a8aaad;
+  --line: #d4d1c9;
+  --line-2: #e6e3db;
+  --acc: #c85a2a;
+  --acc-2: #1e5a6e;
+  --pos: #2a6b3a;
+  --warn: #b8771a;
+}
+
+/* 3. EXPLICIT DARK OVERRIDE */
 :root[data-theme="dark"] {
   --bg: #14171a;
   --surface: #1a1e22;
@@ -58,7 +75,6 @@
   --acc-2: #5eb4c8;
   --pos: #6bb07a;
   --warn: #e0a64a;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
