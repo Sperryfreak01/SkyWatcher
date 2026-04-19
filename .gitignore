@@ -14,9 +14,14 @@ dist/
 .env.local
 .env.*.local
 
-# Runtime quota state (persisted across container restarts, not source)
+# Runtime state (persisted across container restarts, not source)
 backend/quota.json
 backend/quota.json.tmp
+backend/setup.json
+backend/setup.json.tmp
+
+# Deploy script (contains server details, not for version control)
+deploy.sh
 
 # OS
 .DS_Store

@@ -16,6 +16,7 @@ const FA_MONTHLY_BUDGET = parseFloat(process.env.FA_MONTHLY_BUDGET ?? '9.50');
 const FA_DAILY_SOFT_LIMIT = Math.floor(FA_DAILY_QUOTA * 0.95);
 
 const QUOTA_FILE = resolve(__dirname, 'quota.json');
+const SETUP_FILE = resolve(__dirname, 'setup.json');
 
 // Mutable runtime config — can be updated via POST /api/setup
 const runtimeConfig = {
@@ -37,6 +38,38 @@ const quota = {
   count: 0,
   date: new Date().toDateString(),
 };
+
+async function loadSetup() {
+  try {
+    const raw = await readFile(SETUP_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    if (saved.adsbUrl) runtimeConfig.adsbUrl = saved.adsbUrl;
+    if (saved.lat)     runtimeConfig.lat = saved.lat;
+    if (saved.lon)     runtimeConfig.lon = saved.lon;
+    if (saved.elev)    runtimeConfig.elev = saved.elev;
+    if (saved.obstructionAngle) runtimeConfig.obstructionAngle = saved.obstructionAngle;
+    console.log('[setup] Restored config from setup.json');
+  } catch {
+    // File absent — first run, use env vars
+  }
+}
+
+async function persistSetup() {
+  const tmp = `${SETUP_FILE}.tmp`;
+  try {
+    const data = {
+      adsbUrl: runtimeConfig.adsbUrl,
+      lat: runtimeConfig.lat,
+      lon: runtimeConfig.lon,
+      elev: runtimeConfig.elev,
+      obstructionAngle: runtimeConfig.obstructionAngle,
+    };
+    await writeFile(tmp, JSON.stringify(data), 'utf8');
+    await rename(tmp, SETUP_FILE);
+  } catch (err) {
+    console.error('[setup] Failed to persist setup config:', err.message);
+  }
+}
 
 async function loadQuota() {
   try {
@@ -291,12 +324,13 @@ app.post('/api/setup', async (req, res) => {
     });
   }
 
-  // Update non-secret runtime config
+  // Update non-secret runtime config and persist so it survives restarts
   runtimeConfig.adsbUrl = adsbUrl;
   runtimeConfig.lat = String(lat);
   runtimeConfig.lon = String(lon);
   runtimeConfig.elev = String(elev);
   runtimeConfig.obstructionAngle = obstructionAngle != null ? String(obstructionAngle) : runtimeConfig.obstructionAngle;
+  await persistSetup();
 
   // Handle FA key — never log, never return
   const faKeyProvided = typeof faKey === 'string' && faKey.trim().length > 0;
@@ -328,6 +362,7 @@ app.post('/api/setup', async (req, res) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
+await loadSetup();
 await loadQuota();
 await pollFaUsage();
 setInterval(pollFaUsage, 60 * 60 * 1000);
