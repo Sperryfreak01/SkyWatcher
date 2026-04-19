@@ -22,8 +22,18 @@ export default function App() {
   return <AppShell />
 }
 
-function formatDistance(m) {
+function azToCardinal(deg) {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8]
+}
+
+function formatDistanceNm(m) {
   if (m == null) return '—'
+  return `${(m / 1852).toFixed(1)}`
+}
+
+function formatDistanceKm(m) {
+  if (m == null) return null
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
 }
 
@@ -46,7 +56,10 @@ function AppShell() {
         <div className="main">
           <div className="left-pane">
             <div className="corners-top">
-              <div />
+              <div>
+                <h2 className="section-title">Overhead now</h2>
+                <div className="label">Where to look</div>
+              </div>
               <div className="chart-toggle">
                 <button
                   className={variant === 'classic' ? 'active' : ''}
@@ -72,22 +85,29 @@ function AppShell() {
             </div>
 
             <div className="bearing-strip">
-              <div className="stat">
-                <div className="stat-k">AZ</div>
-                <div className="stat-v sm accent">
+              <div className="stat lg">
+                <div className="stat-k">Azimuth</div>
+                <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
                 </div>
-              </div>
-              <div className="stat">
-                <div className="stat-k">EL</div>
-                <div className="stat-v sm accent">
-                  {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
+                <div className="stat-sub">
+                  {currentAircraft ? azToCardinal(currentAircraft.az) : ''}
                 </div>
               </div>
-              <div className="stat">
-                <div className="stat-k">DIST</div>
-                <div className="stat-v sm">
-                  {currentAircraft ? formatDistance(currentAircraft.distance3d) : '—'}
+              <div className="stat lg">
+                <div className="stat-k">Elevation</div>
+                <div className="stat-v accent mono">
+                  {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
+                </div>
+                <div className="stat-sub">up from horizon</div>
+              </div>
+              <div className="stat lg">
+                <div className="stat-k">Distance</div>
+                <div className="stat-v mono">
+                  {currentAircraft ? `${formatDistanceNm(currentAircraft.distance3d)} nm` : '—'}
+                </div>
+                <div className="stat-sub">
+                  {currentAircraft ? formatDistanceKm(currentAircraft.distance3d) : ''}
                 </div>
               </div>
             </div>

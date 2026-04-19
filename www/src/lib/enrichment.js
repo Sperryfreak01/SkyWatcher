@@ -9,6 +9,11 @@
  */
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const CACHE_TTL_PREFLIGHT_MS = 5 * 60 * 1000 // 5 min — status may change soon
+
+const PRE_DEPARTURE_STATUSES = new Set([
+  'SCHEDULED', 'FILED', 'PREDICTED',
+])
 const CACHE_PREFIX = 'fa:'
 
 /**
@@ -42,7 +47,9 @@ function readCache(callsign) {
  */
 function writeCache(callsign, data) {
   try {
-    const entry = { data, expiresAt: Date.now() + CACHE_TTL_MS }
+    const status = (data?.status ?? '').toUpperCase().replace(/_/g, ' ')
+    const ttl = PRE_DEPARTURE_STATUSES.has(status) ? CACHE_TTL_PREFLIGHT_MS : CACHE_TTL_MS
+    const entry = { data, expiresAt: Date.now() + ttl }
     localStorage.setItem(CACHE_PREFIX + callsign, JSON.stringify(entry))
   } catch {
     // localStorage may be unavailable (private browsing quota exceeded, etc.)
