@@ -1,11 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { writeFile, readFile, rename, mkdir } from 'fs/promises';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── Environment / config ────────────────────────────────────────────────────
 
