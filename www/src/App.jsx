@@ -2,6 +2,7 @@ import { useContext, useState, useEffect } from 'react'
 import { AircraftContext } from './contexts/AircraftContext'
 import { SettingsContext } from './contexts/SettingsContext'
 import { useAdsbPoller } from './lib/adsb'
+import { useDeviceOrientation } from './lib/orientation'
 import SkyChart from './components/SkyChart'
 import WeatherPanel from './components/WeatherPanel'
 import FirstRun from './components/FirstRun'
@@ -65,6 +66,8 @@ function formatDistanceKm(m) {
 
 function AppShell() {
   useAdsbPoller()
+  const orientation = useDeviceOrientation()
+  const { heading } = orientation
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
   const { chartVariant, updateSettings } = useContext(SettingsContext)
@@ -74,7 +77,7 @@ function AppShell() {
 
   return (
     <div className="app">
-      <StatusBar />
+      <StatusBar orientation={orientation} />
 
       {showWeather ? (
         <WeatherPanel />
@@ -107,6 +110,7 @@ function AppShell() {
                 aircraft={visibleAircraft}
                 variant={variant}
                 loading={pollingStatus === 'idle'}
+                rotation={heading}
               />
             </div>
 
