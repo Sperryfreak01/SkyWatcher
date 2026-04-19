@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react'
+import { useContext, useState, useEffect, useRef } from 'react'
 import { AircraftContext } from './contexts/AircraftContext'
 import { SettingsContext } from './contexts/SettingsContext'
 import { useAdsbPoller } from './lib/adsb'
@@ -11,9 +11,10 @@ import RoutePanel from './components/RoutePanel'
 import TransponderPanel from './components/TransponderPanel'
 import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
+import { useGeolocation, GEOLOCATION_FAILURE_THRESHOLD } from './lib/geolocation'
 
 export default function App() {
-  const { observer, updateObserver } = useContext(SettingsContext)
+  const { observer, updateObserver, captureHomeObserver } = useContext(SettingsContext)
   // null = checking, true = configured, false = needs first-run
   const [configured, setConfigured] = useState(null)
 
@@ -34,6 +35,7 @@ export default function App() {
             elev: parseFloat(cfg.elev),
             obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
           })
+          captureHomeObserver()
         }
       })
       .catch(() => setConfigured(false))
@@ -68,9 +70,38 @@ function AppShell() {
   useAdsbPoller()
   const orientation = useDeviceOrientation()
   const { heading } = orientation
+  // heading drives compass rotation in both Home and Field Mode — no change
+  // needed here; Field Mode GPS position is handled via observer in context
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
-  const { chartVariant, updateSettings } = useContext(SettingsContext)
+  const { chartVariant, updateSettings, updateObserver, fieldModeEnabled, homeObserver } = useContext(SettingsContext)
+  const geo = useGeolocation(fieldModeEnabled)
+
+  useEffect(() => {
+    if (fieldModeEnabled && geo.position) {
+      updateObserver({
+        lat: geo.position.lat,
+        lon: geo.position.lon,
+        obstructionAngle: 0,
+      })
+    } else if (!fieldModeEnabled && homeObserver) {
+      // homeObserver guard is intentional — null means first-run setup hasn't
+      // completed yet, so there's nothing to restore
+      updateObserver(homeObserver)
+    }
+  }, [fieldModeEnabled, geo.position, homeObserver, updateObserver])
+
+  const hasWarnedRef = useRef(false)
+
+  useEffect(() => {
+    if (fieldModeEnabled && geo.consecutiveFailures >= GEOLOCATION_FAILURE_THRESHOLD) {
+      if (!hasWarnedRef.current) {
+        console.warn('[field-mode] GPS signal lost; reverting to Home Mode')
+        hasWarnedRef.current = true
+      }
+      updateSettings({ fieldModeEnabled: false })
+    }
+  }, [fieldModeEnabled, geo.consecutiveFailures, updateSettings])
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
@@ -85,6 +116,14 @@ function AppShell() {
         <div className="main">
           <div className="left-pane">
             <div className="corners-top">
+              {geo.isSupported && !geo.isDenied && (
+                <button
+                  className={`mode-toggle${fieldModeEnabled ? ' active' : ''}`}
+                  onClick={() => updateSettings({ fieldModeEnabled: !fieldModeEnabled })}
+                >
+                  {fieldModeEnabled ? 'Field' : 'Home'}
+                </button>
+              )}
               <div>
                 <h2 className="section-title">Overhead now</h2>
                 <div className="label">Where to look</div>

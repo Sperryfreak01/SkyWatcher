@@ -4,6 +4,8 @@ const STORAGE_KEY = 'skywatcher-settings'
 
 const defaults = {
   observer: { lat: null, lon: null, elev: null, obstructionAngle: 14.2 },
+  homeObserver: null,
+  fieldModeEnabled: false,
   theme: 'auto',
   chartVariant: 'classic',
 }
@@ -46,8 +48,17 @@ export function SettingsProvider({ children }) {
     }))
   }, [])
 
+  // Set once on initial server sync — never overwritten after that.
+  const captureHomeObserver = useCallback(() => {
+    setSettings(prev => {
+      if (prev.homeObserver !== null) return prev
+      if (prev.observer.lat === null) return prev
+      return { ...prev, homeObserver: { ...prev.observer } }
+    })
+  }, [])
+
   return (
-    <SettingsContext.Provider value={{ ...settings, updateSettings, updateObserver }}>
+    <SettingsContext.Provider value={{ ...settings, updateSettings, updateObserver, captureHomeObserver }}>
       {children}
     </SettingsContext.Provider>
   )
