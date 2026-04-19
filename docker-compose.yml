@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: skywatcher-frontend
     ports:
-      - "80:80"
+      - "${APP_PORT:-80}:80"
     depends_on:
       proxy:
         condition: service_started
@@ -28,6 +28,7 @@ services:
       - OBSERVER_ELEV=${OBSERVER_ELEV}
       - OBSTRUCTION_ANGLE=${OBSTRUCTION_ANGLE:-14.2}
       - FA_DAILY_QUOTA=${FA_DAILY_QUOTA:-100}
+      - FA_MONTHLY_BUDGET=${FA_MONTHLY_BUDGET:-9.50}
       - NODE_ENV=production
       - PORT=3000
       - TZ=UTC
