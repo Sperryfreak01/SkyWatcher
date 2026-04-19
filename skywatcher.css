@@ -313,6 +313,16 @@ body { transition: background 0.25s var(--ease), color 0.25s var(--ease); }
 }
 .chart-toggle button.active { background: var(--ink); color: var(--surface); }
 
+.mode-toggle {
+  padding: 5px 12px; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+  border: 1px solid var(--line); cursor: pointer;
+  background: var(--surface-2); color: var(--mute);
+  border-radius: 3px;
+  transition: all 0.18s var(--ease);
+}
+.mode-toggle.active { background: var(--acc); color: var(--surface); }
+
 /* Aircraft identity block */
 .identity-head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;

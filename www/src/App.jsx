@@ -11,6 +11,7 @@ import RoutePanel from './components/RoutePanel'
 import TransponderPanel from './components/TransponderPanel'
 import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
+import { useGeolocation } from './lib/geolocation'
 
 export default function App() {
   const { observer, updateObserver } = useContext(SettingsContext)
@@ -70,7 +71,8 @@ function AppShell() {
   const { heading } = orientation
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
-  const { chartVariant, updateSettings } = useContext(SettingsContext)
+  const { chartVariant, updateSettings, fieldModeEnabled } = useContext(SettingsContext)
+  const geo = useGeolocation(fieldModeEnabled)
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
@@ -85,6 +87,14 @@ function AppShell() {
         <div className="main">
           <div className="left-pane">
             <div className="corners-top">
+              {geo.isSupported && !geo.isDenied && (
+                <button
+                  className={`mode-toggle${fieldModeEnabled ? ' active' : ''}`}
+                  onClick={() => updateSettings({ fieldModeEnabled: !fieldModeEnabled })}
+                >
+                  {fieldModeEnabled ? 'Field' : 'Home'}
+                </button>
+              )}
               <div>
                 <h2 className="section-title">Overhead now</h2>
                 <div className="label">Where to look</div>
