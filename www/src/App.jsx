@@ -38,7 +38,7 @@ function azToCardinal(deg) {
 
 function formatDistanceNm(m) {
   if (m == null) return '—'
-  return `${(m / 1852).toFixed(1)}`
+  return `${(m / 1852).toFixed(1)} nm`
 }
 
 function formatDistanceKm(m) {
@@ -113,7 +113,7 @@ function AppShell() {
               <div className="stat lg">
                 <div className="stat-k">Distance</div>
                 <div className="stat-v mono">
-                  {currentAircraft ? `${formatDistanceNm(currentAircraft.distance3d)} nm` : '—'}
+                  {currentAircraft ? formatDistanceNm(currentAircraft.distance3d) : '—'}
                 </div>
                 <div className="stat-sub">
                   {currentAircraft ? formatDistanceKm(currentAircraft.distance3d) : ''}
