@@ -250,6 +250,16 @@ body { transition: background 0.25s var(--ease), color 0.25s var(--ease); }
   padding: 12px 0;
 }
 
+@media (max-width: 900px) {
+  .chart-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    aspect-ratio: 1 / 1;
+  }
+}
+
 .bearing-strip {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 16px;
