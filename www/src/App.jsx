@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react'
+import { useContext, useState, useEffect, useRef } from 'react'
 import { AircraftContext } from './contexts/AircraftContext'
 import { SettingsContext } from './contexts/SettingsContext'
 import { useAdsbPoller } from './lib/adsb'
@@ -86,6 +86,18 @@ function AppShell() {
       updateObserver(homeObserver)
     }
   }, [fieldModeEnabled, geo.position, homeObserver, updateObserver])
+
+  const hasWarnedRef = useRef(false)
+
+  useEffect(() => {
+    if (fieldModeEnabled && geo.consecutiveFailures >= 2) {
+      if (!hasWarnedRef.current) {
+        console.warn('[field-mode] GPS signal lost; reverting to Home Mode')
+        hasWarnedRef.current = true
+      }
+      updateSettings({ fieldModeEnabled: false })
+    }
+  }, [fieldModeEnabled, geo.consecutiveFailures, updateSettings])
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
