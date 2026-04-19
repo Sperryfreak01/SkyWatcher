@@ -18,6 +18,9 @@ dist/
 backend/quota.json
 backend/quota.json.tmp
 
+# Deployment script (prod-specific, contains server details)
+deploy.sh
+
 # OS
 .DS_Store
 Thumbs.db
