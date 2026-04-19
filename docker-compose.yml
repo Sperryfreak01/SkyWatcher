@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: skywatcher-frontend
     ports:
-      - "80:80"
+      - "${APP_PORT:-80}:80"
     depends_on:
       proxy:
         condition: service_started
@@ -31,6 +31,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - TZ=UTC
+    volumes:
+      - ./.env:/app/.env.host
     networks:
       - skywatcher
     restart: unless-stopped

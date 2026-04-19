@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { writeFile, readFile, rename } from 'fs/promises';
+import { writeFile, readFile, rename, access, constants } from 'fs/promises';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,15 +16,101 @@ const FA_MONTHLY_BUDGET = parseFloat(process.env.FA_MONTHLY_BUDGET ?? '9.50');
 const FA_DAILY_SOFT_LIMIT = Math.floor(FA_DAILY_QUOTA * 0.95);
 
 const QUOTA_FILE = resolve(__dirname, 'quota.json');
+const SETUP_FILE = resolve(__dirname, 'setup.json');
+// Bind-mounted host .env — written back after first-run so Portainer shows the values
+const HOST_ENV_FILE = '/app/.env.host';
 
 // Mutable runtime config — can be updated via POST /api/setup
 const runtimeConfig = {
-  adsbUrl: process.env.ADSB_URL ?? 'http://localhost:8080',
+  adsbUrl: process.env.ADSB_URL ?? null,
   lat: process.env.OBSERVER_LAT ?? null,
   lon: process.env.OBSERVER_LON ?? null,
   elev: process.env.OBSERVER_ELEV ?? null,
   obstructionAngle: process.env.OBSTRUCTION_ANGLE ?? '14.2',
 };
+
+// ─── Setup persistence (setup.json + host .env writeback) ────────────────────
+
+async function loadSetup() {
+  try {
+    const raw = await readFile(SETUP_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    // Env vars take precedence over saved file — only fill gaps
+    if (!runtimeConfig.adsbUrl && saved.adsbUrl) runtimeConfig.adsbUrl = saved.adsbUrl;
+    if (!runtimeConfig.lat    && saved.lat)     runtimeConfig.lat = saved.lat;
+    if (!runtimeConfig.lon    && saved.lon)     runtimeConfig.lon = saved.lon;
+    if (!runtimeConfig.elev   && saved.elev)    runtimeConfig.elev = saved.elev;
+    if (saved.obstructionAngle) runtimeConfig.obstructionAngle = saved.obstructionAngle;
+    console.log('[setup] Restored config from setup.json');
+  } catch {
+    // File absent on first start — use env vars (or null)
+  }
+  // Apply default ADSB URL only if nothing was configured at all
+  if (!runtimeConfig.adsbUrl) runtimeConfig.adsbUrl = 'http://localhost:8080';
+}
+
+async function persistSetup() {
+  const tmp = `${SETUP_FILE}.tmp`;
+  try {
+    await writeFile(tmp, JSON.stringify({
+      adsbUrl: runtimeConfig.adsbUrl,
+      lat: runtimeConfig.lat,
+      lon: runtimeConfig.lon,
+      elev: runtimeConfig.elev,
+      obstructionAngle: runtimeConfig.obstructionAngle,
+    }), 'utf8');
+    await rename(tmp, SETUP_FILE);
+  } catch (err) {
+    console.error('[setup] Failed to persist setup.json:', err.message);
+  }
+}
+
+// Write collected config back to the bind-mounted host .env so Portainer reflects
+// the values. Updates existing keys in-place and appends any missing ones.
+async function writeBackHostEnv(faKey) {
+  try {
+    await access(HOST_ENV_FILE, constants.W_OK);
+  } catch {
+    console.log('[setup] Host .env not mounted or not writable — skipping writeback');
+    return;
+  }
+
+  let src = '';
+  try { src = await readFile(HOST_ENV_FILE, 'utf8'); } catch { /* new file */ }
+
+  const updates = {
+    ADSB_URL: runtimeConfig.adsbUrl,
+    OBSERVER_LAT: runtimeConfig.lat,
+    OBSERVER_LON: runtimeConfig.lon,
+    OBSERVER_ELEV: runtimeConfig.elev,
+    OBSTRUCTION_ANGLE: runtimeConfig.obstructionAngle,
+    ...(faKey ? { FLIGHTAWARE_API_KEY: faKey } : {}),
+  };
+
+  const lines = src.split('\n');
+  const seen = new Set();
+
+  const updated = lines.map(line => {
+    const m = line.match(/^([A-Z_]+)=/);
+    if (m && updates[m[1]] != null) {
+      seen.add(m[1]);
+      return `${m[1]}=${updates[m[1]]}`;
+    }
+    return line;
+  });
+
+  for (const [key, val] of Object.entries(updates)) {
+    if (!seen.has(key) && val != null) updated.push(`${key}=${val}`);
+  }
+
+  const out = updated.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  try {
+    await writeFile(HOST_ENV_FILE, out, 'utf8');
+    console.log('[setup] Wrote config back to host .env');
+  } catch (err) {
+    console.error('[setup] Failed to write host .env:', err.message);
+  }
+}
 
 // ─── FlightAware cache (server-side, TTL 24 h) ───────────────────────────────
 
@@ -291,27 +377,30 @@ app.post('/api/setup', async (req, res) => {
     });
   }
 
-  // Update non-secret runtime config
+  // Update non-secret runtime config and persist for container restarts
   runtimeConfig.adsbUrl = adsbUrl;
   runtimeConfig.lat = String(lat);
   runtimeConfig.lon = String(lon);
   runtimeConfig.elev = String(elev);
   runtimeConfig.obstructionAngle = obstructionAngle != null ? String(obstructionAngle) : runtimeConfig.obstructionAngle;
+  await persistSetup();
 
   // Handle FA key — never log, never return
   const faKeyProvided = typeof faKey === 'string' && faKey.trim().length > 0;
+  const trimmedKey = faKeyProvided ? faKey.trim() : null;
   if (faKeyProvided) {
-    process.env.FLIGHTAWARE_API_KEY = faKey.trim();
+    process.env.FLIGHTAWARE_API_KEY = trimmedKey;
     try {
       const envPath = resolve(__dirname, '.env.local');
-      await writeFile(envPath, `FLIGHTAWARE_API_KEY=${faKey.trim()}\n`, { mode: 0o600 });
+      await writeFile(envPath, `FLIGHTAWARE_API_KEY=${trimmedKey}\n`, { mode: 0o600 });
     } catch (writeErr) {
       console.error('[setup] Failed to persist FA key to .env.local:', writeErr.message);
-      // Non-fatal — key is set in memory even if file write fails
     }
-    // Seed FA usage state now that we have a key
     pollFaUsage();
   }
+
+  // Write all collected values back to the bind-mounted host .env for Portainer visibility
+  await writeBackHostEnv(trimmedKey);
 
   return res.json({
     success: true,
@@ -328,6 +417,7 @@ app.post('/api/setup', async (req, res) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
+await loadSetup();
 await loadQuota();
 await pollFaUsage();
 setInterval(pollFaUsage, 60 * 60 * 1000);

@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, useEffect } from 'react'
 import { AircraftContext } from './contexts/AircraftContext'
 import { SettingsContext } from './contexts/SettingsContext'
 import { useAdsbPoller } from './lib/adsb'
@@ -12,11 +12,20 @@ import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
 
 export default function App() {
-  const configured = localStorage.getItem('skywatcher-configured') === 'true'
-  const [showFirstRun, setShowFirstRun] = useState(!configured)
+  // null = checking, true = configured, false = needs first-run
+  const [configured, setConfigured] = useState(null)
 
-  if (showFirstRun) {
-    return <FirstRun onComplete={() => setShowFirstRun(false)} />
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(cfg => setConfigured(Boolean(cfg.lat && cfg.lon && cfg.adsbUrl)))
+      .catch(() => setConfigured(false))
+  }, [])
+
+  if (configured === null) return null
+
+  if (!configured) {
+    return <FirstRun onComplete={() => setConfigured(true)} />
   }
 
   return <AppShell />
