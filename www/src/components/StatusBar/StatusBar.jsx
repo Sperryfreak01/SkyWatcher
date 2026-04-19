@@ -1,6 +1,7 @@
 import { useContext } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 import { SettingsContext } from '../../contexts/SettingsContext'
+import { useDeviceOrientation } from '../../lib/orientation'
 
 function StarIcon() {
   return (
@@ -36,6 +37,16 @@ function AutoIcon() {
   )
 }
 
+function CompassIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7l2 5-2 5-2-5 2-5z" fill="currentColor" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+    </svg>
+  )
+}
+
 function ThemeToggle() {
   const { theme, updateSettings } = useContext(SettingsContext)
   return (
@@ -51,6 +62,29 @@ function ThemeToggle() {
         </button>
       ))}
     </div>
+  )
+}
+
+function OrientationToggle() {
+  const { isSupported, permissionState, requestPermission } = useDeviceOrientation()
+
+  if (!isSupported) return null
+
+  return (
+    <button
+      className={`orientation-btn ${permissionState === 'granted' ? 'active' : ''}`}
+      onClick={requestPermission}
+      title="Enable Compass"
+      style={{
+        width: 28, height: 24, border: '1px solid var(--line)',
+        background: permissionState === 'granted' ? 'var(--ink)' : 'var(--surface-2)',
+        color: permissionState === 'granted' ? 'var(--surface)' : 'var(--mute)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 3, cursor: 'pointer', padding: 0
+      }}
+    >
+      <CompassIcon />
+    </button>
   )
 }
 
@@ -83,6 +117,7 @@ export default function StatusBar() {
       </div>
 
       <div className="statusbar-right">
+        <OrientationToggle />
         <ThemeToggle />
       </div>
     </div>
