@@ -30,7 +30,7 @@ export async function fetchPhoto(hex) {
   if (!hex) return null
 
   const normalizedHex = hex.toLowerCase()
-  const cacheKey = `photo:${normalizedHex}`
+  const cacheKey = `photo:v2:${normalizedHex}`
 
   // --- Cache read ---
   try {
@@ -68,7 +68,7 @@ export async function fetchPhoto(hex) {
     const first = data.photos[0]
     /** @type {PhotoResult} */
     const result = {
-      src: first.thumbnail?.src ?? null,
+      src: first.thumbnail_large?.src ?? first.thumbnail?.src ?? null,
       link: first.link ?? null,
       photographer: first.photographer ?? null,
     }

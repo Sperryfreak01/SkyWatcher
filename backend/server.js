@@ -132,8 +132,10 @@ app.get('/api/enrich/:callsign', async (req, res) => {
 
     const faData = await faRes.json();
 
-    // Extract only the fields the frontend needs from the first flight entry
-    const flight = Array.isArray(faData.flights) ? faData.flights[0] : faData;
+    // Prefer the active flight; fall back to the most recent entry
+    const flights = Array.isArray(faData.flights) ? faData.flights : [faData];
+    const flight = flights.find(f => f?.status?.toLowerCase() === 'active') ?? flights[0];
+
     const payload = {
       registration: flight?.registration ?? null,
       aircraft_type: flight?.aircraft_type ?? null,
@@ -144,10 +146,12 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       progress_percent: flight?.progress_percent ?? null,
     };
 
-    // Store in cache
+    // Cache active/completed flights for 24h; cache scheduled flights for only
+    // 5 minutes so they refresh once the aircraft departs.
+    const isActive = ['active', 'completed'].includes(payload.status?.toLowerCase())
     faCache.set(callsign, {
       data: payload,
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      expiresAt: Date.now() + (isActive ? 24 * 60 * 60 * 1000 : 5 * 60 * 1000),
     });
 
     return res.json(payload);
