@@ -311,12 +311,6 @@ app.get('/api/enrich/:callsign', async (req, res) => {
   try {
     const faUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(callsign)}`;
 
-    // Increment quota BEFORE the outbound call — prevents billing multiple
-    // calls when a fetch is already in-flight. Concurrent bursts at exactly the
-    // limit can still race (async disk I/O is not atomic), but at single-user
-    // scale this is an acceptable trade-off vs. a full reserve-ticket scheme.
-    await incrementQuota();
-
     const faRes = await fetch(faUrl, {
       headers: { 'x-apikey': apiKey },
     });
@@ -325,6 +319,11 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       console.error(`[enrich] FlightAware returned HTTP ${faRes.status} for ${callsign}`);
       return res.status(faRes.status).json({ error: 'fa_upstream_error', status: faRes.status });
     }
+
+    // Increment quota AFTER successful response — ensures failed calls don't consume budget.
+    // Concurrent bursts can still race (async disk I/O), but at single-user scale this 
+    // is an acceptable trade-off vs. billing for 4xx/5xx errors.
+    await incrementQuota();
 
     const faData = await faRes.json();
 
