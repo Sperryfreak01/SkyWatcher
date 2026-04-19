@@ -12,6 +12,10 @@ RUN npm ci --production
 # Copy backend source code
 COPY backend/ .
 
+# Create data directory and drop to non-root user
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
+
 # Expose internal port (only accessible on compose network)
 EXPOSE 3000
 

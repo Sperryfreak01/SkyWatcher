@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: skywatcher-frontend
     ports:
-      - "${APP_PORT:-80}:80"
+      - "${APP_PORT:-80}:8080"
     depends_on:
       proxy:
         condition: service_started
@@ -32,7 +32,7 @@ services:
       - PORT=3000
       - TZ=UTC
     volumes:
-      - ./.env:/app/.env.host
+      - skywatcher-data:/app/data
     networks:
       - skywatcher
     restart: unless-stopped
@@ -45,3 +45,6 @@ networks:
     ipam:
       config:
         - subnet: 172.25.0.0/16
+
+volumes:
+  skywatcher-data:
