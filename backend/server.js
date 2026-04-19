@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import { writeFile, readFile, rename, access, constants } from 'fs/promises';
+import { writeFile, readFile, rename, mkdir } from 'fs/promises';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -15,10 +16,11 @@ const FA_MONTHLY_BUDGET = parseFloat(process.env.FA_MONTHLY_BUDGET ?? '9.50');
 // Effective daily ceiling is 95% of the configured limit
 const FA_DAILY_SOFT_LIMIT = Math.floor(FA_DAILY_QUOTA * 0.95);
 
-const QUOTA_FILE = resolve(__dirname, 'quota.json');
-const SETUP_FILE = resolve(__dirname, 'setup.json');
-// Bind-mounted host .env — written back after first-run so Portainer shows the values
-const HOST_ENV_FILE = '/app/.env.host';
+// Persistent data directory (named Docker volume mounted at /app/data)
+const DATA_DIR = '/app/data';
+const QUOTA_FILE = resolve(DATA_DIR, 'quota.json');
+const SETUP_FILE = resolve(DATA_DIR, 'setup.json');
+const FA_KEY_FILE = resolve(DATA_DIR, '.env.local');
 
 // Mutable runtime config — can be updated via POST /api/setup
 const runtimeConfig = {
@@ -29,7 +31,27 @@ const runtimeConfig = {
   obstructionAngle: process.env.OBSTRUCTION_ANGLE ?? '14.2',
 };
 
-// ─── Setup persistence (setup.json + host .env writeback) ────────────────────
+// ─── Setup auth state ────────────────────────────────────────────────────────
+
+// One-time setup token generated at startup and logged to stdout.
+// Operator must present it in X-Setup-Token header on POST /api/setup.
+const SETUP_TOKEN = randomBytes(16).toString('hex');
+
+// Flipped to true once setup.json has been successfully written. When true,
+// /api/setup refuses further calls with 403. Initialised from loadSetup() if
+// a complete configuration is already present on disk (defence-in-depth).
+let setupCompleted = false;
+
+function isConfigComplete() {
+  return Boolean(
+    runtimeConfig.adsbUrl &&
+    runtimeConfig.lat &&
+    runtimeConfig.lon &&
+    runtimeConfig.elev
+  );
+}
+
+// ─── Setup persistence (setup.json) ──────────────────────────────────────────
 
 async function loadSetup() {
   try {
@@ -42,11 +64,26 @@ async function loadSetup() {
     if (!runtimeConfig.elev   && saved.elev)    runtimeConfig.elev = saved.elev;
     if (saved.obstructionAngle) runtimeConfig.obstructionAngle = saved.obstructionAngle;
     console.log('[setup] Restored config from setup.json');
+    // If the on-disk config is complete, mark setup as already done so the
+    // endpoint stays locked even across restarts.
+    if (isConfigComplete()) setupCompleted = true;
   } catch {
     // File absent on first start — use env vars (or null)
   }
   // Apply default ADSB URL only if nothing was configured at all
   if (!runtimeConfig.adsbUrl) runtimeConfig.adsbUrl = 'http://localhost:8080';
+
+  // Restore FA key from the data volume so it survives container restarts.
+  try {
+    const keyFile = await readFile(FA_KEY_FILE, 'utf8');
+    const match = keyFile.match(/^FLIGHTAWARE_API_KEY=(.+)$/m);
+    if (match && match[1].trim() && !process.env.FLIGHTAWARE_API_KEY) {
+      process.env.FLIGHTAWARE_API_KEY = match[1].trim();
+      console.log('[setup] Restored FA key from data volume');
+    }
+  } catch {
+    /* absent = no key saved */
+  }
 }
 
 async function persistSetup() {
@@ -60,56 +97,43 @@ async function persistSetup() {
       obstructionAngle: runtimeConfig.obstructionAngle,
     }), 'utf8');
     await rename(tmp, SETUP_FILE);
+    return true;
   } catch (err) {
     console.error('[setup] Failed to persist setup.json:', err.message);
+    return false;
   }
 }
 
-// Write collected config back to the bind-mounted host .env so Portainer reflects
-// the values. Updates existing keys in-place and appends any missing ones.
-async function writeBackHostEnv(faKey) {
+// ─── SSRF guard for adsbUrl ──────────────────────────────────────────────────
+
+// Reject loopback hosts (a fetch from the container back to itself is a SSRF
+// vector) and non-http(s) schemes. Private/RFC-1918 addresses are permitted
+// because the ADS-B receiver is intended to live on the LAN.
+function validateAdsbUrl(rawUrl) {
+  let parsed;
   try {
-    await access(HOST_ENV_FILE, constants.W_OK);
+    parsed = new URL(rawUrl);
   } catch {
-    console.log('[setup] Host .env not mounted or not writable — skipping writeback');
-    return;
+    return 'adsbUrl is not a valid URL';
   }
 
-  let src = '';
-  try { src = await readFile(HOST_ENV_FILE, 'utf8'); } catch { /* new file */ }
-
-  const updates = {
-    ADSB_URL: runtimeConfig.adsbUrl,
-    OBSERVER_LAT: runtimeConfig.lat,
-    OBSERVER_LON: runtimeConfig.lon,
-    OBSERVER_ELEV: runtimeConfig.elev,
-    OBSTRUCTION_ANGLE: runtimeConfig.obstructionAngle,
-    ...(faKey ? { FLIGHTAWARE_API_KEY: faKey } : {}),
-  };
-
-  const lines = src.split('\n');
-  const seen = new Set();
-
-  const updated = lines.map(line => {
-    const m = line.match(/^([A-Z_]+)=/);
-    if (m && updates[m[1]] != null) {
-      seen.add(m[1]);
-      return `${m[1]}=${updates[m[1]]}`;
-    }
-    return line;
-  });
-
-  for (const [key, val] of Object.entries(updates)) {
-    if (!seen.has(key) && val != null) updated.push(`${key}=${val}`);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return 'adsbUrl must use http: or https:';
   }
 
-  const out = updated.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
-  try {
-    await writeFile(HOST_ENV_FILE, out, 'utf8');
-    console.log('[setup] Wrote config back to host .env');
-  } catch (err) {
-    console.error('[setup] Failed to write host .env:', err.message);
+  const host = parsed.hostname.toLowerCase();
+  const loopback =
+    host === 'localhost' ||
+    host === '::1' ||
+    host === '[::1]' ||
+    host === '0.0.0.0' ||
+    /^127\./.test(host);
+
+  if (loopback) {
+    return 'adsbUrl may not point at loopback';
   }
+
+  return null;
 }
 
 // ─── FlightAware cache (server-side, TTL 24 h) ───────────────────────────────
@@ -216,13 +240,18 @@ function isMonthlyBudgetExceeded() {
 const app = express();
 
 app.use(express.json());
-app.use(
-  cors({
-    origin: ['http://localhost:5173', 'http://localhost'],
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-  })
-);
+
+// CORS is only required for the local Vite dev server. In production all
+// requests come through the nginx reverse proxy on the same origin.
+if (process.env.NODE_ENV !== 'production') {
+  app.use(
+    cors({
+      origin: ['http://localhost:5173', 'http://localhost'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'X-Setup-Token'],
+    })
+  );
+}
 
 // ─── GET /api/aircraft ────────────────────────────────────────────────────────
 
@@ -280,6 +309,11 @@ app.get('/api/enrich/:callsign', async (req, res) => {
   // Call FlightAware AeroAPI
   try {
     const faUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(callsign)}`;
+
+    // Increment quota BEFORE the outbound call to close the TOCTOU window —
+    // better to slightly over-count than to race past the daily ceiling.
+    await incrementQuota();
+
     const faRes = await fetch(faUrl, {
       headers: { 'x-apikey': apiKey },
     });
@@ -288,8 +322,6 @@ app.get('/api/enrich/:callsign', async (req, res) => {
       console.error(`[enrich] FlightAware returned HTTP ${faRes.status} for ${callsign}`);
       return res.status(faRes.status).json({ error: 'fa_upstream_error', status: faRes.status });
     }
-
-    await incrementQuota();
 
     const faData = await faRes.json();
 
@@ -360,7 +392,28 @@ app.get('/api/config', (_req, res) => {
 
 // ─── POST /api/setup ──────────────────────────────────────────────────────────
 
+function verifySetupToken(req) {
+  const provided = req.header('X-Setup-Token');
+  if (!provided || typeof provided !== 'string') return false;
+
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(SETUP_TOKEN, 'utf8');
+  // timingSafeEqual throws on mismatched lengths — short-circuit first.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 app.post('/api/setup', async (req, res) => {
+  // 1) Authenticate FIRST so we don't leak configuration state to unauthenticated callers.
+  if (!verifySetupToken(req)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  // 2) Refuse if setup already completed (one-shot endpoint).
+  if (setupCompleted) {
+    return res.status(403).json({ error: 'already_configured' });
+  }
+
   const { adsbUrl, lat, lon, elev, obstructionAngle, faKey } = req.body ?? {};
 
   // Validate required fields
@@ -372,6 +425,12 @@ app.post('/api/setup', async (req, res) => {
 
   if (missing.length > 0) {
     return res.status(400).json({ error: 'missing_required_fields', fields: missing });
+  }
+
+  // Validate adsbUrl against SSRF (scheme + loopback guard)
+  const urlErr = validateAdsbUrl(adsbUrl);
+  if (urlErr) {
+    return res.status(400).json({ error: 'invalid_adsb_url', message: urlErr });
   }
 
   // Validate coordinate ranges
@@ -397,7 +456,7 @@ app.post('/api/setup', async (req, res) => {
   runtimeConfig.lon = String(lon);
   runtimeConfig.elev = String(elev);
   runtimeConfig.obstructionAngle = obstructionAngle != null ? String(obstructionAngle) : runtimeConfig.obstructionAngle;
-  await persistSetup();
+  const persisted = await persistSetup();
 
   // Handle FA key — never log, never return
   const faKeyProvided = typeof faKey === 'string' && faKey.trim().length > 0;
@@ -405,8 +464,7 @@ app.post('/api/setup', async (req, res) => {
   if (faKeyProvided) {
     process.env.FLIGHTAWARE_API_KEY = trimmedKey;
     try {
-      const envPath = resolve(__dirname, '.env.local');
-      await writeFile(envPath, `FLIGHTAWARE_API_KEY=${trimmedKey}\n`, { mode: 0o600 });
+      await writeFile(FA_KEY_FILE, `FLIGHTAWARE_API_KEY=${trimmedKey}\n`, { mode: 0o600 });
     } catch (writeErr) {
       console.error('[setup] Failed to persist FA key to .env.local:', writeErr.message);
       // Key is in memory for this session but won't survive a restart — tell the client
@@ -418,8 +476,8 @@ app.post('/api/setup', async (req, res) => {
     pollFaUsage();
   }
 
-  // Write all collected values back to the bind-mounted host .env for Portainer visibility
-  await writeBackHostEnv(trimmedKey);
+  // Lock the endpoint once we've successfully written setup.json.
+  if (persisted) setupCompleted = true;
 
   return res.json({
     success: true,
@@ -436,6 +494,8 @@ app.post('/api/setup', async (req, res) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
+// Create the data dir before any persistence layer touches it.
+await mkdir(DATA_DIR, { recursive: true });
 await loadSetup();
 await loadQuota();
 await pollFaUsage();
@@ -447,4 +507,8 @@ app.listen(PORT, () => {
   console.log(`[skywatcher-proxy] ADSB_URL: ${runtimeConfig.adsbUrl}`);
   console.log(`[skywatcher-proxy] Daily quota: ${FA_DAILY_QUOTA} (soft limit: ${FA_DAILY_SOFT_LIMIT})`);
   console.log(`[skywatcher-proxy] Monthly budget: $${FA_MONTHLY_BUDGET} (ceiling: $${(FA_MONTHLY_BUDGET * 0.95).toFixed(2)})`);
+  console.log(`[setup] *** SETUP TOKEN: ${SETUP_TOKEN} ***`);
+  if (setupCompleted) {
+    console.log('[setup] Configuration already present on disk — /api/setup is locked');
+  }
 });
