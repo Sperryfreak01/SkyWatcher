@@ -44,19 +44,6 @@ function compassFromDeg(deg) {
   return `from the ${COMPASS_NAMES[abbr]}`
 }
 
-function dewPointComfort(dp) {
-  if (dp < 50) return 'dry'
-  if (dp < 60) return 'comfortable'
-  if (dp < 65) return 'somewhat humid'
-  return 'humid'
-}
-
-function visibilitySub(visMi) {
-  if (visMi >= 9.9) return 'unlimited'
-  if (visMi >= 5) return 'good'
-  if (visMi >= 3) return 'moderate'
-  return 'poor'
-}
 
 function sunsetFormat(isoString) {
   if (!isoString) return null

@@ -163,18 +163,9 @@ app.get('/api/enrich/:callsign', async (req, res) => {
     return res.status(503).json({ error: 'fa_key_not_configured' });
   }
 
-  // Monthly budget ceiling (outer gate — larger scope)
-  if (isMonthlyBudgetExceeded()) {
-    return res.status(429).json({
-      error: 'monthly_budget_exceeded',
-      total_cost: faUsageState.total_cost,
-      monthly_budget: FA_MONTHLY_BUDGET,
-    });
-  }
-
   const callsign = req.params.callsign.trim().toUpperCase();
 
-  // Check cache first
+  // Cache check first — hits cost $0 and must be served even when budget is exhausted
   const cached = faCache.get(callsign);
   if (cached && cached.expiresAt > Date.now()) {
     return res.json(cached.data);
@@ -183,6 +174,15 @@ app.get('/api/enrich/:callsign', async (req, res) => {
   // Evict stale entry if present
   if (cached) {
     faCache.delete(callsign);
+  }
+
+  // Monthly budget ceiling (blocks live FA calls only, not cache hits)
+  if (isMonthlyBudgetExceeded()) {
+    return res.status(429).json({
+      error: 'monthly_budget_exceeded',
+      total_cost: faUsageState.total_cost,
+      monthly_budget: FA_MONTHLY_BUDGET,
+    });
   }
 
   // Daily quota check (inner gate)
