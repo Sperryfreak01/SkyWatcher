@@ -13,7 +13,16 @@ const defaults = {
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? { ...defaults, ...JSON.parse(raw) } : defaults
+    const stored = raw ? JSON.parse(raw) : null
+    const settings = { ...defaults, ...(stored ?? {}) }
+
+    // No stored mode preference + Tesla browser → default to field mode
+    const noStoredMode = !stored || stored.fieldModeEnabled === undefined
+    if (noStoredMode && navigator.userAgent.toLowerCase().includes('tesla')) {
+      settings.fieldModeEnabled = true
+    }
+
+    return settings
   } catch {
     return defaults
   }
