@@ -248,9 +248,11 @@ body { transition: background 0.25s var(--ease), color 0.25s var(--ease); }
 }
 
 .corners-top {
-  position: relative;
-  display: flex; justify-content: space-between; align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-start;
 }
+.corners-top > :last-child { justify-self: end; }
 
 .chart-wrap {
   flex: 1;
