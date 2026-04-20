@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useMonotonicRotation } from '../../lib/rotation'
 
 // Props: { aircraft: Array<{az, el, hex, callsign, distance3d}>, variant: 'classic'|'dome', loading: bool, rotation: number }
 export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0 }) {
@@ -39,6 +40,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
   ]
+  const displayRot = useMonotonicRotation(rotation)
 
   return (
     <svg
@@ -48,7 +50,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
       height="100%"
       style={{ display: 'block' }}
     >
-      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+      <g style={{ transform: `rotate(${displayRot}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
         <defs>
           <radialGradient id="sc-classic-bg" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="var(--surface)" />
@@ -166,6 +168,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
   ]
+  const displayRot = useMonotonicRotation(rotation)
 
   return (
     <svg
@@ -175,7 +178,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
       height="100%"
       style={{ display: 'block' }}
     >
-      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+      <g style={{ transform: `rotate(${displayRot}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
         <defs>
           <radialGradient id="sc-dome-bg" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="var(--surface)" />
@@ -445,6 +448,7 @@ function LoadingSweep() {
 // ─── Empty state ─────────────────────────────────────────────────────────────
 function EmptyChart({ variant, rotation = 0 }) {
   const chartClass = `sky-chart sky-chart--${variant} sky-chart--empty`
+  const displayRot = useMonotonicRotation(rotation)
 
   return (
     <svg
@@ -454,7 +458,7 @@ function EmptyChart({ variant, rotation = 0 }) {
       height="100%"
       style={{ display: 'block' }}
     >
-      <g style={{ transform: `rotate(${-rotation}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
+      <g style={{ transform: `rotate(${displayRot}deg)`, transformOrigin: `${CX}px ${CY}px`, transition: 'transform 0.5s ease' }}>
         <defs>
           <radialGradient id="sc-empty-bg" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="var(--surface)" />
