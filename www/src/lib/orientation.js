@@ -10,6 +10,9 @@ export function useDeviceOrientation() {
   const [permissionState, setPermissionState] = useState('unknown') // 'unknown' | 'granted' | 'denied'
 
   const listenerRef = useRef(null) // { eventName, handler } or null
+  const smoothedHeadingRef = useRef(null)
+
+  const ALPHA = 0.15 // smoothing factor: lower = smoother, higher = more responsive
 
   // handleOrientation must be declared before any useEffect that references it
   const handleOrientation = useCallback((event) => {
@@ -18,7 +21,13 @@ export function useDeviceOrientation() {
     if (h != null) {
       // webkitCompassHeading is already CW from North; standard alpha is CCW so invert it
       const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
-      setHeading(correctedHeading)
+      if (smoothedHeadingRef.current === null) {
+        smoothedHeadingRef.current = correctedHeading
+      } else {
+        const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
+        smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
+      }
+      setHeading(smoothedHeadingRef.current)
     }
   }, [])
 
