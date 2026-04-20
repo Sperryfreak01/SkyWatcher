@@ -1,26 +1,7 @@
-import { useContext, useState, useEffect } from 'react'
+import { useContext } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 import { SettingsContext } from '../../contexts/SettingsContext'
 
-function formatTimeUntil(isoString) {
-  if (!isoString) return null
-  const ms = new Date(isoString) - Date.now()
-  if (ms <= 0) return null
-  const totalMin = Math.floor(ms / 60000)
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
-
-function useCountdown(isoString) {
-  const [label, setLabel] = useState(() => formatTimeUntil(isoString))
-  useEffect(() => {
-    setLabel(formatTimeUntil(isoString))
-    const id = setInterval(() => setLabel(formatTimeUntil(isoString)), 60000)
-    return () => clearInterval(id)
-  }, [isoString])
-  return label
-}
 
 function StarIcon() {
   return (
@@ -109,7 +90,6 @@ function OrientationToggle({ orientation }) {
 
 export default function StatusBar({ orientation }) {
   const { visibleAircraft, pollingStatus, quota } = useContext(AircraftContext)
-  const resetIn = useCountdown(quota?.resetsAt)
 
   return (
     <div className="statusbar">
@@ -137,7 +117,6 @@ export default function StatusBar({ orientation }) {
         {quota && (
           <span className="quota-badge">
             FA {quota.used}/{quota.softLimit ?? quota.limit}
-            {resetIn && <span className="quota-reset"> · resets {resetIn}</span>}
           </span>
         )}
       </div>
