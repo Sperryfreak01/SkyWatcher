@@ -82,6 +82,7 @@ function AppShell() {
       updateObserver({
         lat: geo.position.lat,
         lon: geo.position.lon,
+        elev: homeObserver?.elev ?? 0,
         obstructionAngle: 0,
       })
     } else if (!fieldModeEnabled && homeObserver) {
