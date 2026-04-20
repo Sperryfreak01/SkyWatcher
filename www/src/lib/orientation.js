@@ -11,6 +11,17 @@ export function useDeviceOrientation() {
 
   const listenerRef = useRef(null) // { eventName, handler } or null
 
+  // handleOrientation must be declared before any useEffect that references it
+  const handleOrientation = useCallback((event) => {
+    // Use != null so heading=0 (North) is treated as valid, not falsy
+    const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
+    if (h != null) {
+      // webkitCompassHeading is already CW from North; standard alpha is CCW so invert it
+      const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
+      setHeading(correctedHeading)
+    }
+  }, [])
+
   // Check if API is available; auto-register on Android (no permission dialog needed)
   useEffect(() => {
     const hasApi = window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent
@@ -31,16 +42,6 @@ export function useDeviceOrientation() {
     listenerRef.current = { eventName, handler: handleOrientation }
     setPermissionState('granted')
   }, [handleOrientation])
-
-  const handleOrientation = useCallback((event) => {
-    // Use != null so heading=0 (North) is treated as valid, not falsy
-    const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
-    if (h != null) {
-      // webkitCompassHeading is already CW from North; standard alpha is CCW so invert it
-      const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
-      setHeading(correctedHeading)
-    }
-  }, [])
 
   const requestPermission = async () => {
     // Skip if listener already registered to prevent accumulation
