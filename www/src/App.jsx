@@ -106,10 +106,20 @@ function AppShell() {
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
+  const debugMode = new URLSearchParams(window.location.search).has('debug')
 
   return (
     <div className="app">
       <StatusBar orientation={orientation} />
+      {debugMode && (
+        <div style={{
+          position: 'fixed', bottom: 12, left: 12, zIndex: 9999,
+          background: 'rgba(0,0,0,0.75)', color: '#0f0', fontFamily: 'monospace',
+          fontSize: 13, padding: '6px 10px', borderRadius: 4, pointerEvents: 'none'
+        }}>
+          heading: {Math.round(heading)}° | perm: {orientation.permissionState} | supported: {String(orientation.isSupported)}
+        </div>
+      )}
 
       {showWeather ? (
         <WeatherPanel />
