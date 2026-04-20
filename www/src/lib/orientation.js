@@ -11,12 +11,26 @@ export function useDeviceOrientation() {
 
   const listenerRef = useRef(null) // { eventName, handler } or null
 
-  // Check if API is available on mount
+  // Check if API is available; auto-register on Android (no permission dialog needed)
   useEffect(() => {
-    if (window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent) {
-      setIsSupported(true)
-    }
-  }, [])
+    const hasApi = window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent
+    if (!hasApi) return
+    setIsSupported(true)
+
+    // iOS requires an explicit user gesture to call requestPermission — skip auto-register
+    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function'
+    if (needsPermission) return
+
+    // Android/non-iOS: register immediately without a button tap
+    if (listenerRef.current) return
+    const eventName = 'ondeviceorientationabsolute' in window
+      ? 'deviceorientationabsolute'
+      : 'deviceorientation'
+    window.addEventListener(eventName, handleOrientation, true)
+    listenerRef.current = { eventName, handler: handleOrientation }
+    setPermissionState('granted')
+  }, [handleOrientation])
 
   const handleOrientation = useCallback((event) => {
     // Use != null so heading=0 (North) is treated as valid, not falsy
