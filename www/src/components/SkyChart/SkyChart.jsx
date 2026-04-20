@@ -106,12 +106,15 @@ function ClassicChart({ aircraft, rotation = 0 }) {
         {/* Elevation labels */}
         {[30, 60].map((deg) => {
           const rr = R * (1 - deg / 90)
+          const labelY = CY - rr + 2
           return (
             <g key={deg}>
-              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)"
+                transform={`rotate(${-displayRot}, ${CX}, ${labelY})`} />
               <text
-                x={CX} y={CY - rr + 2}
+                x={CX} y={labelY}
                 textAnchor="middle"
+                transform={`rotate(${-displayRot}, ${CX}, ${labelY})`}
                 style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
               >{deg}°</text>
             </g>
@@ -128,6 +131,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
               x={tx} y={ty + 3}
               textAnchor="middle"
               dominantBaseline="middle"
+              transform={`rotate(${-displayRot}, ${tx}, ${ty + 3})`}
               style={{
                 fontSize: isMajor ? 11 : 9,
                 fontFamily: 'var(--mono)',
@@ -154,6 +158,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
               callsign={ac.callsign}
               az={ac.az} el={ac.el}
               isPrimary={isPrimary}
+              rotation={-displayRot}
             />
           )
         })}
@@ -228,12 +233,15 @@ function DomeChart({ aircraft, rotation = 0 }) {
         {/* Elevation labels */}
         {[30, 60].map((deg) => {
           const rr = R * (1 - deg / 90)
+          const labelY = CY - rr + 2
           return (
             <g key={deg}>
-              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)" />
+              <rect x={CX - 10} y={CY - rr - 6} width="20" height="10" fill="var(--surface)"
+                transform={`rotate(${-displayRot}, ${CX}, ${labelY})`} />
               <text
-                x={CX} y={CY - rr + 2}
+                x={CX} y={labelY}
                 textAnchor="middle"
+                transform={`rotate(${-displayRot}, ${CX}, ${labelY})`}
                 style={{ fontSize: 8, fontFamily: 'var(--mono)', fill: 'var(--mute-2)', letterSpacing: '0.05em' }}
               >{deg}°</text>
             </g>
@@ -250,6 +258,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
               x={tx} y={ty + 3}
               textAnchor="middle"
               dominantBaseline="middle"
+              transform={`rotate(${-displayRot}, ${tx}, ${ty + 3})`}
               style={{
                 fontSize: isMajor ? 11 : 9,
                 fontFamily: 'var(--mono)',
@@ -276,6 +285,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
               callsign={ac.callsign}
               az={ac.az} el={ac.el}
               isPrimary={isPrimary}
+              rotation={-displayRot}
             />
           )
         })}
@@ -285,7 +295,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
 }
 
 // ─── Aircraft marker sub-component ──────────────────────────────────────────
-function AircraftMarker({ px, py, callsign, az, el, isPrimary }) {
+function AircraftMarker({ px, py, callsign, az, el, isPrimary, rotation = 0 }) {
   const transition = 'cx 0.5s ease, cy 0.5s ease'
   const labelW = (callsign ? callsign.length * 7 + 10 : 50)
 
@@ -327,8 +337,7 @@ function AircraftMarker({ px, py, callsign, az, el, isPrimary }) {
       {callsign && (
         <g
           className="sky-chart__callsign"
-          transform={`translate(${px + 10}, ${py - 12})`}
-          style={{ transition: 'transform 0.5s ease' }}
+          transform={`translate(${px + 10}, ${py - 12}) rotate(${rotation}, ${labelW / 2}, 7)`}
         >
           <rect
             x="0" y="0"
@@ -355,6 +364,7 @@ function AircraftMarker({ px, py, callsign, az, el, isPrimary }) {
       {isPrimary && (
         <text
           x={px + 10} y={py + 15}
+          transform={`rotate(${rotation}, ${px + 10}, ${py + 15})`}
           style={{
             fontSize: 8,
             fontFamily: 'var(--mono)',
@@ -496,6 +506,7 @@ function EmptyChart({ variant, rotation = 0 }) {
           const [tx, ty] = azElToXY(a, 0, CX, CY, R + 16)
           return (
             <text key={l} x={tx} y={ty + 3} textAnchor="middle" dominantBaseline="middle"
+              transform={`rotate(${-displayRot}, ${tx}, ${ty + 3})`}
               style={{ fontSize: 11, fontFamily: 'var(--mono)', fill: 'var(--ink-2)', fontWeight: 700 }}
             >{l}</text>
           )
@@ -508,6 +519,7 @@ function EmptyChart({ variant, rotation = 0 }) {
         <text
           x={CX} y={CY + 20}
           textAnchor="middle"
+          transform={`rotate(${-displayRot}, ${CX}, ${CY + 20})`}
           style={{
             fontSize: 11,
             fontFamily: 'var(--mono)',
