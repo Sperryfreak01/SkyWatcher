@@ -166,6 +166,7 @@ function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
           )
         })}
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
@@ -296,6 +297,7 @@ function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
           )
         })}
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
@@ -583,6 +585,7 @@ function EmptyChart({ variant, rotation = 0, compassActive = false }) {
           }}
         >No aircraft</text>
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
