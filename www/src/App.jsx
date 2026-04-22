@@ -69,7 +69,7 @@ function formatDistanceKm(m) {
 function AppShell() {
   useAdsbPoller()
   const orientation = useDeviceOrientation()
-  const { heading } = orientation
+  const { heading, permissionState } = orientation
   // heading drives compass rotation in both Home and Field Mode — no change
   // needed here; Field Mode GPS position is handled via observer in context
 
@@ -161,6 +161,7 @@ function AppShell() {
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}
+                compassActive={permissionState === 'granted'}
               />
             </div>
 

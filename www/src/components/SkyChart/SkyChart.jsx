@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useMonotonicRotation } from '../../lib/rotation'
 
-// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, variant: 'classic'|'dome', loading: bool, rotation: number }
-export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0 }) {
+// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, variant: 'classic'|'dome', loading: bool, rotation: number, compassActive: bool }
+export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0, compassActive = false }) {
   if (loading) {
     return <LoadingSweep />
   }
 
   if (aircraft.length === 0) {
-    return <EmptyChart variant={variant} rotation={rotation} />
+    return <EmptyChart variant={variant} rotation={rotation} compassActive={compassActive} />
   }
 
   return variant === 'dome' ? (
-    <DomeChart aircraft={aircraft} rotation={rotation} />
+    <DomeChart aircraft={aircraft} rotation={rotation} compassActive={compassActive} />
   ) : (
-    <ClassicChart aircraft={aircraft} rotation={rotation} />
+    <ClassicChart aircraft={aircraft} rotation={rotation} compassActive={compassActive} />
   )
 }
 
@@ -35,7 +35,7 @@ function azElToXY(az, el, cx, cy, r) {
 }
 
 // ─── Classic polar chart ─────────────────────────────────────────────────────
-function ClassicChart({ aircraft, rotation = 0 }) {
+function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -147,6 +147,9 @@ function ClassicChart({ aircraft, rotation = 0 }) {
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
         <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
 
+        {/* Viewing-angle wedge — only when compass is active */}
+        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
+
         {/* Aircraft: render all, closest (index 0) gets primary accent */}
         {aircraft.map((ac, i) => {
           const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
@@ -168,7 +171,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
 }
 
 // ─── Dome chart (visual tweak: darker toward edges, radial gradient) ─────────
-function DomeChart({ aircraft, rotation = 0 }) {
+function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -273,6 +276,9 @@ function DomeChart({ aircraft, rotation = 0 }) {
         {/* Center zenith marker */}
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
         <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
+
+        {/* Viewing-angle wedge — only when compass is active */}
+        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
 
         {/* Aircraft */}
         {aircraft.map((ac, i) => {
@@ -381,6 +387,49 @@ function AircraftMarker({ px, py, callsign, track, isPrimary, rotation = 0 }) {
   )
 }
 
+// ─── Viewing-angle wedge overlay ─────────────────────────────────────────────
+// Draws a 120° wedge centered on az=0 (North/up) in the rotating chart group.
+// Because the parent <g> already rotates by the compass heading, this wedge
+// always visually points in the direction the user is facing.
+function ViewingWedge({ cx, cy, r }) {
+  const halfAngle = 60 // degrees — 120° total FOV
+  const startRad = (-halfAngle * Math.PI) / 180
+  const endRad = (halfAngle * Math.PI) / 180
+
+  // Arc on the sky-disk rim; tip at center.
+  // azimuth 0 = North = -Y axis in SVG, so angles are measured from -Y.
+  const x1 = cx + r * Math.sin(startRad)
+  const y1 = cy - r * Math.cos(startRad)
+  const x2 = cx + r * Math.sin(endRad)
+  const y2 = cy - r * Math.cos(endRad)
+
+  const wedgePath = [
+    `M ${cx} ${cy}`,
+    `L ${x1} ${y1}`,
+    `A ${r} ${r} 0 0 1 ${x2} ${y2}`,
+    'Z',
+  ].join(' ')
+
+  return (
+    <g className="sky-chart__fov-wedge">
+      <defs>
+        <radialGradient id="sc-fov-grad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--acc)" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="var(--acc)" stopOpacity="0.04" />
+        </radialGradient>
+      </defs>
+      <path
+        d={wedgePath}
+        fill="url(#sc-fov-grad)"
+        stroke="var(--acc)"
+        strokeWidth="0.75"
+        strokeOpacity="0.25"
+        strokeLinejoin="round"
+      />
+    </g>
+  )
+}
+
 // ─── Loading sweep animation ─────────────────────────────────────────────────
 function LoadingSweep() {
   const [t, setT] = useState(0)
@@ -460,7 +509,7 @@ function LoadingSweep() {
 }
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
-function EmptyChart({ variant, rotation = 0 }) {
+function EmptyChart({ variant, rotation = 0, compassActive = false }) {
   const chartClass = `sky-chart sky-chart--${variant} sky-chart--empty`
   const displayRot = useMonotonicRotation(rotation)
 
@@ -518,6 +567,9 @@ function EmptyChart({ variant, rotation = 0 }) {
 
         {/* Center */}
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" opacity="0.3" />
+
+        {/* Viewing-angle wedge — only when compass is active */}
+        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
 
         {/* No aircraft text */}
         <text
