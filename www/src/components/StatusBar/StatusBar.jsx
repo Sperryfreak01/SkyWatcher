@@ -114,11 +114,32 @@ export default function StatusBar({ orientation }) {
         {pollingStatus === 'error' && (
           <span className="poll-ring" style={{ color: 'var(--warn)' }}>RECEIVER ERROR</span>
         )}
-        {quota && (
-          <span className="quota-badge">
-            FA {quota.used}/{quota.softLimit ?? quota.limit}
-          </span>
-        )}
+        {quota && (() => {
+          const limit = quota.softLimit ?? quota.limit
+          const pct = limit > 0 ? quota.used / limit : 0
+          if (pct >= 1) {
+            return (
+              <span className="quota-badge" style={{ color: 'var(--warn)', borderColor: 'var(--warn)' }}
+                title={`FlightAware quota full (${quota.used}/${limit} calls used today)`}>
+                FA quota full
+              </span>
+            )
+          }
+          if (pct >= 0.8) {
+            return (
+              <span className="quota-badge" style={{ color: 'var(--warn)', borderColor: 'var(--warn)' }}
+                title={`FlightAware quota low (${quota.used}/${limit} calls used today)`}>
+                FA quota low
+              </span>
+            )
+          }
+          return (
+            <span className="quota-badge"
+              title={`FlightAware enrichment active (${quota.used}/${limit} calls used today)`}>
+              FA
+            </span>
+          )
+        })()}
       </div>
 
       <div className="statusbar-right">
