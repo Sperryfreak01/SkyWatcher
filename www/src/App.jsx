@@ -12,6 +12,7 @@ import TransponderPanel from './components/TransponderPanel'
 import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
 import { useGeolocation, GEOLOCATION_FAILURE_THRESHOLD } from './lib/geolocation'
+import { fmtDist } from './lib/units'
 
 export default function App() {
   const { observer, updateObserver, captureHomeObserver, updateWorkObserver, locationMode, updateSettings } = useContext(SettingsContext)
@@ -85,16 +86,6 @@ function elToBand(el) {
   if (el >= 20) return 'Mid'
   if (el >= 5) return 'Low'
   return 'Horizon'
-}
-
-function formatDistanceNm(m) {
-  if (m == null) return '—'
-  return `${(m / 1852).toFixed(1)} nm`
-}
-
-function formatDistanceKm(m) {
-  if (m == null) return null
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
 }
 
 function AppShell() {
@@ -243,10 +234,7 @@ function AppShell() {
               <div className="stat lg">
                 <div className="stat-k">Distance</div>
                 <div className="stat-v mono">
-                  {currentAircraft ? formatDistanceNm(currentAircraft.distance3d) : '—'}
-                </div>
-                <div className="stat-sub">
-                  {currentAircraft ? formatDistanceKm(currentAircraft.distance3d) : ''}
+                  {currentAircraft ? fmtDist(currentAircraft.distance3d) : '—'}
                 </div>
               </div>
             </div>
