@@ -56,6 +56,20 @@ function azToCardinal(deg) {
   return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8]
 }
 
+function azToRelative(aircraftAz, userHeading) {
+  const rel = (((aircraftAz - userHeading) % 360) + 360) % 360
+  const dirs = ['Ahead', 'Ahead-Right', 'Right', 'Behind-Right', 'Behind', 'Behind-Left', 'Left', 'Ahead-Left']
+  return dirs[Math.round(rel / 45) % 8]
+}
+
+function elToBand(el) {
+  if (el >= 75) return 'Overhead'
+  if (el >= 45) return 'High'
+  if (el >= 20) return 'Mid'
+  if (el >= 5) return 'Low'
+  return 'Horizon'
+}
+
 function formatDistanceNm(m) {
   if (m == null) return '—'
   return `${(m / 1852).toFixed(1)} nm`
@@ -166,7 +180,7 @@ function AppShell() {
 
             <div className="bearing-strip">
               <div className="stat lg">
-                <div className="stat-k">Azimuth</div>
+                <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
                 <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
                 </div>
@@ -179,7 +193,9 @@ function AppShell() {
                 <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
                 </div>
-                <div className="stat-sub">up from horizon</div>
+                <div className="stat-sub">
+                  {currentAircraft ? elToBand(currentAircraft.el) : ''}
+                </div>
               </div>
               <div className="stat lg">
                 <div className="stat-k">Distance</div>
