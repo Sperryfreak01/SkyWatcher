@@ -147,9 +147,6 @@ function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
         <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
 
-        {/* Viewing-angle wedge — only when compass is active */}
-        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
-
         {/* Aircraft: render all, closest (index 0) gets primary accent */}
         {aircraft.map((ac, i) => {
           const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
@@ -166,6 +163,7 @@ function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
           )
         })}
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
@@ -277,9 +275,6 @@ function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" />
         <circle cx={CX} cy={CY} r="7" fill="none" stroke="var(--ink)" strokeWidth="0.5" opacity="0.4" />
 
-        {/* Viewing-angle wedge — only when compass is active */}
-        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
-
         {/* Aircraft */}
         {aircraft.map((ac, i) => {
           const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
@@ -296,6 +291,7 @@ function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
           )
         })}
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
@@ -566,9 +562,6 @@ function EmptyChart({ variant, rotation = 0, compassActive = false }) {
         {/* Center */}
         <circle cx={CX} cy={CY} r="3" fill="var(--ink)" opacity="0.3" />
 
-        {/* Viewing-angle wedge — only when compass is active */}
-        {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
-
         {/* No aircraft text */}
         <text
           x={CX} y={CY + 20}
@@ -583,6 +576,7 @@ function EmptyChart({ variant, rotation = 0, compassActive = false }) {
           }}
         >No aircraft</text>
       </g>
+      {compassActive && <ViewingWedge cx={CX} cy={CY} r={R} />}
     </svg>
   )
 }
