@@ -278,7 +278,7 @@ body { transition: background 0.25s var(--ease), color 0.25s var(--ease); }
   .main { display: grid; grid-template-columns: 1.15fr 1fr; overflow: hidden; flex: 1; height: auto; }
   .left-pane { min-height: 0; overflow: hidden; border-right: 1px solid var(--line); border-bottom: none; }
   .chart-wrap { flex: 1; aspect-ratio: unset; max-width: unset; min-height: 0; width: auto; margin: 0; }
-  .right-pane { overflow-y: auto; height: auto; }
+  .right-pane { overflow-y: auto; height: auto; min-height: 0; }
 }
 
 .bearing-strip {
