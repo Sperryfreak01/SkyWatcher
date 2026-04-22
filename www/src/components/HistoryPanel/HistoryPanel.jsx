@@ -6,7 +6,7 @@ import { AircraftContext } from '../../contexts/AircraftContext'
  * Data is sourced from AircraftContext.history (managed by useHistory hook).
  */
 export default function HistoryPanel() {
-  const { history, currentAircraft } = useContext(AircraftContext)
+  const { history, currentAircraft, setCurrentAircraft } = useContext(AircraftContext)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -28,6 +28,7 @@ export default function HistoryPanel() {
             <div
               key={entry.hex}
               className={`hist-card${isActive ? ' active' : ''}`}
+              onClick={() => setCurrentAircraft(entry)}
               style={{
                 flex: '0 0 auto',
                 minWidth: 118,
