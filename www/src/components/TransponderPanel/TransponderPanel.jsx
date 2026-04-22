@@ -1,10 +1,10 @@
 import { useContext } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 
-function Row({ label, value, unit, accent }) {
+function Row({ label, value, unit, accent, title }) {
   return (
     <div className="row">
-      <span className="row-k">{label}</span>
+      <span className="row-k" title={title}>{label}</span>
       <span className={`row-v${accent ? ' accent' : ''}`}>
         {value}
         {unit && <span className="u">{unit}</span>}
@@ -72,15 +72,15 @@ export default function TransponderPanel() {
         <Row label="Altitude" value={formatAlt(alt_baro)} unit="ft" accent />
         <Row label="Ground speed" value={gs != null ? Math.round(gs) : '—'} unit="kts" />
         <Row label="Heading" value={track != null ? `${Math.round(track)}°` : '—'} />
-        <Row label="Vertical rate" value={formatVRate(baro_rate)} unit="fpm" />
-        <Row label="Squawk" value={squawk || '—'} />
-        <Row label="ICAO" value={hex?.toUpperCase() || '—'} />
+        <Row label="Vertical rate" value={formatVRate(baro_rate)} unit="fpm" title="Vertical rate: rate of climb or descent in feet per minute" />
+        <Row label="Squawk" value={squawk || '—'} title="Squawk code: 4-digit octal code assigned by ATC to identify this aircraft on radar" />
+        <Row label="ICAO" value={hex?.toUpperCase() || '—'} title="ICAO 24-bit hex address: unique identifier assigned to this aircraft" />
         <Row
           label="Distance"
           value={dist === '—' ? '—' : dist.value}
           unit={dist === '—' ? undefined : dist.unit}
         />
-        <Row label="Azimuth" value={az != null ? `${Math.round(az)}°` : '—'} />
+        <Row label="Azimuth" value={az != null ? `${Math.round(az)}°` : '—'} title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)" />
         <Row label="Elevation" value={el != null ? `${Math.round(el)}°` : '—'} />
         {dir && <Row label="Direction" value={dir} />}
       </div>

@@ -166,7 +166,7 @@ function AppShell() {
 
             <div className="bearing-strip">
               <div className="stat lg">
-                <div className="stat-k">Azimuth</div>
+                <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
                 <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
                 </div>
