@@ -177,6 +177,7 @@ function AppShell() {
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}
+                compassActive={permissionState === 'granted'}
               />
             </div>
 
