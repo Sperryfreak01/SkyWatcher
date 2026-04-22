@@ -14,7 +14,7 @@ import StatusBar from './components/StatusBar/StatusBar'
 import { useGeolocation, GEOLOCATION_FAILURE_THRESHOLD } from './lib/geolocation'
 
 export default function App() {
-  const { observer, updateObserver, captureHomeObserver } = useContext(SettingsContext)
+  const { observer, updateObserver, captureHomeObserver, updateWorkObserver, locationMode, updateSettings } = useContext(SettingsContext)
   // null = checking, true = configured, false = needs first-run
   const [configured, setConfigured] = useState(null)
 
@@ -36,6 +36,23 @@ export default function App() {
             obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
           })
           captureHomeObserver()
+        }
+
+        // Hydrate work observer if the server has it configured
+        if (cfg.workLat && cfg.workLon && cfg.workElev) {
+          updateWorkObserver({
+            lat: parseFloat(cfg.workLat),
+            lon: parseFloat(cfg.workLon),
+            elev: parseFloat(cfg.workElev),
+            obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
+          })
+        } else {
+          // Work env vars removed — if stored mode was 'work', revert to home
+          // so the user isn't left with an invisible active selection.
+          updateWorkObserver(null)
+          if (locationMode === 'work') {
+            updateSettings({ locationMode: 'home' })
+          }
         }
       })
       .catch(() => setConfigured(false))
@@ -88,35 +105,39 @@ function AppShell() {
   // needed here; Field Mode GPS position is handled via observer in context
 
   const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
-  const { chartVariant, updateSettings, updateObserver, fieldModeEnabled, homeObserver } = useContext(SettingsContext)
+  const { chartVariant, updateSettings, updateObserver, locationMode, homeObserver, workObserver } = useContext(SettingsContext)
+  const fieldModeEnabled = locationMode === 'field'
   const geo = useGeolocation(fieldModeEnabled)
 
   useEffect(() => {
-    if (fieldModeEnabled && geo.position) {
+    // Guard: wait until home observer is populated from server config
+    if (!homeObserver) return
+
+    if (locationMode === 'field' && geo.position) {
       updateObserver({
         lat: geo.position.lat,
         lon: geo.position.lon,
-        elev: homeObserver?.elev ?? 0,
-        obstructionAngle: homeObserver?.obstructionAngle ?? 14.2,
+        elev: homeObserver.elev ?? 0,
+        obstructionAngle: homeObserver.obstructionAngle ?? 14.2,
       })
-    } else if (!fieldModeEnabled && homeObserver) {
-      // homeObserver guard is intentional — null means first-run setup hasn't
-      // completed yet, so there's nothing to restore
+    } else if (locationMode === 'work' && workObserver) {
+      updateObserver(workObserver)
+    } else if (locationMode === 'home') {
       updateObserver(homeObserver)
     }
-  }, [fieldModeEnabled, geo.position, homeObserver, updateObserver])
+  }, [locationMode, geo.position, homeObserver, workObserver, updateObserver])
 
   const hasWarnedRef = useRef(false)
 
   useEffect(() => {
-    if (fieldModeEnabled && geo.consecutiveFailures >= GEOLOCATION_FAILURE_THRESHOLD) {
+    if (locationMode === 'field' && geo.consecutiveFailures >= GEOLOCATION_FAILURE_THRESHOLD) {
       if (!hasWarnedRef.current) {
         console.warn('[field-mode] GPS signal lost; reverting to Home Mode')
         hasWarnedRef.current = true
       }
-      updateSettings({ fieldModeEnabled: false })
+      updateSettings({ locationMode: 'home' })
     }
-  }, [fieldModeEnabled, geo.consecutiveFailures, updateSettings])
+  }, [locationMode, geo.consecutiveFailures, updateSettings])
 
   const showWeather = visibleAircraft.length === 0 && pollingStatus === 'active'
   const variant = chartVariant || 'classic'
@@ -141,14 +162,29 @@ function AppShell() {
         <div className="main">
           <div className="left-pane">
             <div className="corners-top">
-              {geo.isSupported && !geo.isDenied && (
+              <div className="mode-selector">
                 <button
-                  className={`mode-toggle${fieldModeEnabled ? ' active' : ''}`}
-                  onClick={() => updateSettings({ fieldModeEnabled: !fieldModeEnabled })}
+                  className={locationMode === 'home' ? 'active' : ''}
+                  onClick={() => updateSettings({ locationMode: 'home' })}
                 >
-                  {fieldModeEnabled ? 'Field' : 'Home'}
+                  Home
                 </button>
-              )}
+                <button
+                  className={locationMode === 'work' ? 'active' : ''}
+                  disabled={!workObserver}
+                  onClick={() => updateSettings({ locationMode: 'work' })}
+                >
+                  Work
+                </button>
+                {geo.isSupported && !geo.isDenied && (
+                  <button
+                    className={locationMode === 'field' ? 'active' : ''}
+                    onClick={() => updateSettings({ locationMode: 'field' })}
+                  >
+                    Field
+                  </button>
+                )}
+              </div>
               <div>
                 <h2 className="section-title">Overhead now</h2>
                 <div className="label">Where to look</div>
