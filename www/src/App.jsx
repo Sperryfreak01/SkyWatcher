@@ -143,12 +143,14 @@ function AppShell() {
                 <button
                   className={variant === 'classic' ? 'active' : ''}
                   onClick={() => updateSettings({ chartVariant: 'classic' })}
+                  title="Classic: top-down polar compass view showing azimuth and elevation rings"
                 >
                   Classic
                 </button>
                 <button
                   className={variant === 'dome' ? 'active' : ''}
                   onClick={() => updateSettings({ chartVariant: 'dome' })}
+                  title="Dome: perspective projection showing the sky as a curved bowl"
                 >
                   Dome
                 </button>
