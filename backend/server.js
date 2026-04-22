@@ -28,6 +28,13 @@ const runtimeConfig = {
   obstructionAngle: process.env.OBSTRUCTION_ANGLE ?? '14.2',
 };
 
+// Work location — read-only from env, never persisted or overwritten by setup flow
+const workConfig = {
+  lat: process.env.WORK_LAT || null,
+  lon: process.env.WORK_LON || null,
+  elev: process.env.WORK_ELEV || null,
+};
+
 // ─── Setup auth state ────────────────────────────────────────────────────────
 
 // One-time setup token generated at startup and logged to stdout.
@@ -382,14 +389,24 @@ app.get('/api/fa-usage', (_req, res) => {
 // ─── GET /api/config ──────────────────────────────────────────────────────────
 
 app.get('/api/config', (_req, res) => {
-  return res.json({
+  const payload = {
     adsbUrl: runtimeConfig.adsbUrl,
     lat: runtimeConfig.lat,
     lon: runtimeConfig.lon,
     elev: runtimeConfig.elev,
     obstructionAngle: runtimeConfig.obstructionAngle,
     faKeyConfigured: Boolean(process.env.FLIGHTAWARE_API_KEY),
-  });
+  };
+
+  // Only include work fields when all three env vars are configured
+  const workConfigured = Boolean(workConfig.lat && workConfig.lon && workConfig.elev);
+  if (workConfigured) {
+    payload.workLat = workConfig.lat;
+    payload.workLon = workConfig.lon;
+    payload.workElev = workConfig.elev;
+  }
+
+  return res.json(payload);
 });
 
 // ─── POST /api/setup ──────────────────────────────────────────────────────────
