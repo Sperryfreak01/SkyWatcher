@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMonotonicRotation } from '../../lib/rotation'
 
-// Props: { aircraft: Array<{az, el, hex, callsign, distance3d}>, variant: 'classic'|'dome', loading: bool, rotation: number }
+// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, variant: 'classic'|'dome', loading: bool, rotation: number }
 export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0 }) {
   if (loading) {
     return <LoadingSweep />
@@ -156,7 +156,7 @@ function ClassicChart({ aircraft, rotation = 0 }) {
               key={ac.hex || ac.callsign || i}
               px={px} py={py}
               callsign={ac.callsign}
-              az={ac.az} el={ac.el}
+              track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
             />
@@ -283,7 +283,7 @@ function DomeChart({ aircraft, rotation = 0 }) {
               key={ac.hex || ac.callsign || i}
               px={px} py={py}
               callsign={ac.callsign}
-              az={ac.az} el={ac.el}
+              track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
             />
@@ -295,9 +295,14 @@ function DomeChart({ aircraft, rotation = 0 }) {
 }
 
 // ─── Aircraft marker sub-component ──────────────────────────────────────────
-function AircraftMarker({ px, py, callsign, az, el, isPrimary, rotation = 0 }) {
+function AircraftMarker({ px, py, callsign, track, isPrimary, rotation = 0 }) {
   const transition = 'cx 0.5s ease, cy 0.5s ease'
   const labelW = (callsign ? callsign.length * 7 + 10 : 50)
+
+  // Chevron points in direction of travel (track degrees true, 0=North CW).
+  // rotation counter-rotates to stay oriented with true North in chart space.
+  const hasTrack = track != null
+  const chevronRot = hasTrack ? (track + rotation) : rotation
 
   return (
     <g className="sky-chart__aircraft">
@@ -333,6 +338,19 @@ function AircraftMarker({ px, py, callsign, az, el, isPrimary, rotation = 0 }) {
         style={{ transition }}
       />
 
+      {/* Direction-of-travel chevron — rotated to match track */}
+      {isPrimary && (
+        <g transform={`rotate(${chevronRot}, ${px}, ${py})`}>
+          {/* Arrowhead pointing upward (toward -Y = North), tip at -11 from center */}
+          <path
+            d="M 0 -11 L -5 -3 L 0 -6 L 5 -3 Z"
+            transform={`translate(${px}, ${py})`}
+            fill="var(--acc)"
+            opacity="0.9"
+          />
+        </g>
+      )}
+
       {/* Callsign label tag */}
       {callsign && (
         <g
@@ -358,20 +376,6 @@ function AircraftMarker({ px, py, callsign, az, el, isPrimary, rotation = 0 }) {
             }}
           >{callsign}</text>
         </g>
-      )}
-
-      {/* AZ/EL sub-label for primary aircraft */}
-      {isPrimary && (
-        <text
-          x={px + 10} y={py + 15}
-          transform={`rotate(${rotation}, ${px + 10}, ${py + 15})`}
-          style={{
-            fontSize: 8,
-            fontFamily: 'var(--mono)',
-            fill: 'var(--mute)',
-            letterSpacing: '0.05em',
-          }}
-        >AZ {Math.round(az)}° · EL {Math.round(el)}°</text>
       )}
     </g>
   )
