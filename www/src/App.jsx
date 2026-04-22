@@ -143,12 +143,14 @@ function AppShell() {
                 <button
                   className={variant === 'classic' ? 'active' : ''}
                   onClick={() => updateSettings({ chartVariant: 'classic' })}
+                  title="Classic: top-down polar compass view showing azimuth and elevation rings"
                 >
                   Classic
                 </button>
                 <button
                   className={variant === 'dome' ? 'active' : ''}
                   onClick={() => updateSettings({ chartVariant: 'dome' })}
+                  title="Dome: perspective projection showing the sky as a curved bowl"
                 >
                   Dome
                 </button>
@@ -166,7 +168,7 @@ function AppShell() {
 
             <div className="bearing-strip">
               <div className="stat lg">
-                <div className="stat-k">Azimuth</div>
+                <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
                 <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
                 </div>
