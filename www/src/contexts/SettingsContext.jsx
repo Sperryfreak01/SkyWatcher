@@ -5,7 +5,8 @@ const STORAGE_KEY = 'skywatcher-settings'
 const defaults = {
   observer: { lat: null, lon: null, elev: null, obstructionAngle: 14.2 },
   homeObserver: null,
-  fieldModeEnabled: false,
+  workObserver: null,
+  locationMode: 'home', // 'home' | 'work' | 'field'
   theme: 'auto',
   chartVariant: 'classic',
 }
@@ -16,11 +17,19 @@ function loadSettings() {
     const stored = raw ? JSON.parse(raw) : null
     const settings = { ...defaults, ...(stored ?? {}) }
 
-    // No stored mode preference + Tesla browser → default to field mode
-    const noStoredMode = !stored || stored.fieldModeEnabled === undefined
-    if (noStoredMode && navigator.userAgent.toLowerCase().includes('tesla')) {
-      settings.fieldModeEnabled = true
+    // Back-compat: migrate legacy fieldModeEnabled → locationMode
+    if (stored && stored.locationMode === undefined) {
+      settings.locationMode = stored.fieldModeEnabled === true ? 'field' : 'home'
     }
+
+    // No stored mode preference + Tesla browser → default to field mode
+    const noStoredMode = !stored || stored.locationMode === undefined
+    if (noStoredMode && navigator.userAgent.toLowerCase().includes('tesla')) {
+      settings.locationMode = 'field'
+    }
+
+    // workObserver is never persisted — always hydrated from the server on load
+    settings.workObserver = null
 
     return settings
   } catch {
@@ -34,7 +43,9 @@ export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(loadSettings)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+    // Persist everything except workObserver (server-sourced, not user-editable)
+    const { workObserver: _w, ...persistable } = settings
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable))
   }, [settings])
 
   useEffect(() => {
@@ -66,8 +77,23 @@ export function SettingsProvider({ children }) {
     })
   }, [])
 
+  // Accept a full work observer object from /api/config. No-ops when null.
+  const updateWorkObserver = useCallback((workObserver) => {
+    setSettings(prev => ({ ...prev, workObserver }))
+  }, [])
+
+  // Derive fieldModeEnabled so existing consumers need no changes
+  const fieldModeEnabled = settings.locationMode === 'field'
+
   return (
-    <SettingsContext.Provider value={{ ...settings, updateSettings, updateObserver, captureHomeObserver }}>
+    <SettingsContext.Provider value={{
+      ...settings,
+      fieldModeEnabled,
+      updateSettings,
+      updateObserver,
+      captureHomeObserver,
+      updateWorkObserver,
+    }}>
       {children}
     </SettingsContext.Provider>
   )
