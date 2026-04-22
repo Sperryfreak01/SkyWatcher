@@ -83,7 +83,7 @@ function AppShell() {
         lat: geo.position.lat,
         lon: geo.position.lon,
         elev: homeObserver?.elev ?? 0,
-        obstructionAngle: 0,
+        obstructionAngle: homeObserver?.obstructionAngle ?? 14.2,
       })
     } else if (!fieldModeEnabled && homeObserver) {
       // homeObserver guard is intentional — null means first-run setup hasn't
