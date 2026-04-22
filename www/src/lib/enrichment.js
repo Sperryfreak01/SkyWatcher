@@ -71,6 +71,11 @@ function writeCache(callsign, data) {
  * @returns {Promise<object>} Enrichment data or an error descriptor object.
  */
 export async function enrichAircraft(callsign) {
+  // Skip API calls when the browser tab is not visible to preserve daily quota.
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+    return { skipped: true }
+  }
+
   const normalised = callsign.trim().toUpperCase()
 
   const cached = readCache(normalised)
