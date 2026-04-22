@@ -119,7 +119,7 @@ export default function StatusBar({ orientation }) {
           const pct = limit > 0 ? quota.used / limit : 0
           if (pct >= 1) {
             return (
-              <span className="quota-badge" style={{ color: 'var(--warn)', borderColor: 'var(--warn)' }}
+              <span className="quota-badge" style={{ color: 'var(--warn)' }}
                 title={`FlightAware quota full (${quota.used}/${limit} calls used today)`}>
                 FA quota full
               </span>
@@ -127,7 +127,7 @@ export default function StatusBar({ orientation }) {
           }
           if (pct >= 0.8) {
             return (
-              <span className="quota-badge" style={{ color: 'var(--warn)', borderColor: 'var(--warn)' }}
+              <span className="quota-badge" style={{ color: 'var(--warn)' }}
                 title={`FlightAware quota low (${quota.used}/${limit} calls used today)`}>
                 FA quota low
               </span>

@@ -6,7 +6,7 @@ import { AircraftContext } from '../../contexts/AircraftContext'
  * Data is sourced from AircraftContext.history (managed by useHistory hook).
  */
 export default function HistoryPanel() {
-  const { history, currentAircraft, setCurrentAircraft } = useContext(AircraftContext)
+  const { history, currentAircraft, setCurrentAircraft, visibleAircraft } = useContext(AircraftContext)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -24,11 +24,26 @@ export default function HistoryPanel() {
         )}
         {history.map((entry) => {
           const isActive = currentAircraft?.hex === entry.hex
+          const liveAircraft = visibleAircraft.find(a => a.hex === entry.hex)
+          const isLive = Boolean(liveAircraft)
+
+          const handleSelect = () => {
+            if (liveAircraft) setCurrentAircraft(liveAircraft)
+          }
+
           return (
             <div
               key={entry.hex}
+              role="button"
+              tabIndex={isLive ? 0 : -1}
               className={`hist-card${isActive ? ' active' : ''}`}
-              onClick={() => setCurrentAircraft(entry)}
+              onClick={handleSelect}
+              onKeyDown={(e) => {
+                if (isLive && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault()
+                  handleSelect()
+                }
+              }}
               style={{
                 flex: '0 0 auto',
                 minWidth: 118,
@@ -39,6 +54,8 @@ export default function HistoryPanel() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
+                opacity: isLive ? 1 : 0.5,
+                cursor: isLive ? 'pointer' : 'default',
               }}
             >
               <div
