@@ -35,10 +35,28 @@ export function AircraftProvider({ children }) {
     setEnrichment(null)
     enrichAircraft(callsign).then((result) => {
       if (cancelled) return
+      // Discard the sentinel so a skipped fetch doesn't clobber prior enrichment.
+      if (result?.skipped) return
       setEnrichment(result)
       if (result && !result.error) getQuota().then(setQuota)
     })
     return () => { cancelled = true }
+  }, [callsign])
+
+  // Re-trigger enrichment when the tab becomes visible again so we catch up
+  // on any callsign that was skipped while the tab was hidden.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible') return
+      if (!callsign) return
+      enrichAircraft(callsign).then((result) => {
+        if (result?.skipped || result?.error) return
+        setEnrichment(result)
+        getQuota().then(setQuota)
+      })
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [callsign])
 
   return (
