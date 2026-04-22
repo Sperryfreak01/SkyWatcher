@@ -346,11 +346,9 @@ function AircraftMarker({ px, py, callsign, track, isPrimary, rotation = 0 }) {
 
       {/* Direction-of-travel chevron — rotated to match track */}
       {isPrimary && hasTrack && (
-        <g transform={`rotate(${chevronRot}, ${px}, ${py})`}>
-          {/* Arrowhead pointing upward (toward -Y = North), tip at -11 from center */}
+        <g transform={`translate(${px}, ${py}) rotate(${chevronRot})`}>
           <path
             d="M 0 -11 L -5 -3 L 0 -6 L 5 -3 Z"
-            transform={`translate(${px}, ${py})`}
             fill="var(--acc)"
             opacity="0.9"
           />
