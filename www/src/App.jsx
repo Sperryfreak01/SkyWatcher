@@ -83,7 +83,7 @@ function formatDistanceKm(m) {
 function AppShell() {
   useAdsbPoller()
   const orientation = useDeviceOrientation()
-  const { heading } = orientation
+  const { heading, permissionState } = orientation
   // heading drives compass rotation in both Home and Field Mode — no change
   // needed here; Field Mode GPS position is handled via observer in context
 
@@ -180,12 +180,16 @@ function AppShell() {
 
             <div className="bearing-strip">
               <div className="stat lg">
-                <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
+                <div className="stat-k">Azimuth</div>
                 <div className="stat-v accent mono">
                   {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
                 </div>
                 <div className="stat-sub">
-                  {currentAircraft ? azToCardinal(currentAircraft.az) : ''}
+                  {currentAircraft
+                    ? permissionState === 'granted'
+                      ? azToRelative(currentAircraft.az, heading)
+                      : azToCardinal(currentAircraft.az)
+                    : ''}
                 </div>
               </div>
               <div className="stat lg">
