@@ -95,7 +95,7 @@ function AppShell() {
   // heading drives compass rotation in both Home and Field Mode — no change
   // needed here; Field Mode GPS position is handled via observer in context
 
-  const { visibleAircraft, currentAircraft, pollingStatus } = useContext(AircraftContext)
+  const { visibleAircraft, currentAircraft, setCurrentAircraft, pollingStatus } = useContext(AircraftContext)
   const { chartVariant, updateSettings, updateObserver, locationMode, homeObserver, workObserver } = useContext(SettingsContext)
   const fieldModeEnabled = locationMode === 'field'
   const geo = useGeolocation(fieldModeEnabled)
@@ -200,7 +200,6 @@ function AppShell() {
 
             <div className="chart-wrap">
               <SkyChart
-                aircraft={visibleAircraft}
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}
