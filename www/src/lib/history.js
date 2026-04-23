@@ -43,10 +43,17 @@ export function addToHistory(entries, aircraft) {
   const existingIndex = entries.findIndex(e => e.hex === aircraft.hex)
 
   if (existingIndex !== -1) {
+    const existing = entries[existingIndex]
+    const lastSeenTime = new Date(existing.lastSeen).getTime()
+    // Only update if at least 30 seconds have passed to throttle sessionStorage writes
+    if (Date.now() - lastSeenTime < 30_000) {
+      return entries
+    }
+
     // Update lastSeen only, preserve firstSeen and all other fields
     const updated = [...entries]
     updated[existingIndex] = {
-      ...updated[existingIndex],
+      ...existing,
       lastSeen: now,
     }
     return updated
@@ -67,7 +74,7 @@ export function addToHistory(entries, aircraft) {
 
 /**
  * React hook that manages the observation history, backed by sessionStorage.
- * @returns {{ history: Array, addEntry: (aircraft: Object) => void }}
+ * @returns {{ history: Array, addEntry: (aircraft: Object) => void, addEntries: (aircraftList: Object[]) => void }}
  */
 export function useHistory() {
   const [history, setHistory] = useState(() => loadHistory())
@@ -80,5 +87,17 @@ export function useHistory() {
     })
   }, [])
 
-  return { history, addEntry }
+  const addEntries = useCallback((aircraftList) => {
+    if (!aircraftList || aircraftList.length === 0) return
+    setHistory(prev => {
+      let next = prev
+      for (const ac of aircraftList) {
+        next = addToHistory(next, ac)
+      }
+      if (next !== prev) saveHistory(next)
+      return next
+    })
+  }, [])
+
+  return { history, addEntry, addEntries }
 }
