@@ -200,6 +200,7 @@ export function useAdsbPoller(intervalMs = 10_000) {
 
         setVisibleRef.current(visible)
         setCurrentRef.current(visible[0] ?? null)
+        setStatusRef.current('active')
       } catch (err) {
         if (err.name === 'AbortError') return  // Expected on cleanup
         console.error('[adsb] Fetch error:', err)
@@ -218,7 +219,7 @@ export function useAdsbPoller(intervalMs = 10_000) {
     // Restart the effect only when the observer becomes configured (lat flips
     // from null) or the poll interval changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [observer.lat, intervalMs])
+  }, [Boolean(observer.lat), intervalMs])
 }
 
 // ---------------------------------------------------------------------------
