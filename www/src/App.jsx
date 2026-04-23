@@ -200,9 +200,6 @@ function AppShell() {
 
             <div className="chart-wrap">
               <SkyChart
-                aircraft={visibleAircraft}
-                currentAircraft={currentAircraft}
-                setCurrentAircraft={setCurrentAircraft}
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}

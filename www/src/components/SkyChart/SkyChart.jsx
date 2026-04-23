@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { useMonotonicRotation } from '../../lib/rotation'
+import { AircraftContext } from '../../contexts/AircraftContext'
 
-// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, currentAircraft, setCurrentAircraft, variant: 'classic'|'dome', loading: bool, rotation: number, compassActive: bool }
-export default function SkyChart({ aircraft = [], currentAircraft, setCurrentAircraft, variant = 'classic', loading = false, rotation = 0, compassActive = false }) {
+// Props: { variant: 'classic'|'dome', loading: bool, rotation: number, compassActive: bool }
+export default function SkyChart({ variant = 'classic', loading = false, rotation = 0, compassActive = false }) {
+  const { visibleAircraft: aircraft, currentAircraft, setCurrentAircraft } = useContext(AircraftContext)
+
   if (loading) {
     return <LoadingSweep />
   }
@@ -156,8 +159,6 @@ function ClassicChart({ aircraft, currentAircraft, setCurrentAircraft, rotation 
               key={ac.hex || ac.callsign || i}
               ac={ac}
               px={px} py={py}
-              callsign={ac.callsign}
-              track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
               setCurrentAircraft={setCurrentAircraft}
@@ -286,8 +287,6 @@ function DomeChart({ aircraft, currentAircraft, setCurrentAircraft, rotation = 0
               key={ac.hex || ac.callsign || i}
               ac={ac}
               px={px} py={py}
-              callsign={ac.callsign}
-              track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
               setCurrentAircraft={setCurrentAircraft}
@@ -301,7 +300,8 @@ function DomeChart({ aircraft, currentAircraft, setCurrentAircraft, rotation = 0
 }
 
 // ─── Aircraft marker sub-component ──────────────────────────────────────────
-function AircraftMarker({ ac, px, py, callsign, track, isPrimary, rotation = 0, setCurrentAircraft }) {
+function AircraftMarker({ ac, px, py, isPrimary, rotation = 0, setCurrentAircraft }) {
+  const { callsign, track } = ac
   const transition = 'cx 0.5s ease, cy 0.5s ease'
   const labelW = (callsign ? callsign.length * 7 + 10 : 50)
 
