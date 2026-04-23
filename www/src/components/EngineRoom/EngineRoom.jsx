@@ -8,6 +8,11 @@ export default function EngineRoom() {
   const { allAircraft } = useContext(AircraftContext);
   const { observer } = useContext(SettingsContext);
   const [metrics, setMetrics] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  useEffect(() => {
+    setLastUpdate(new Date());
+  }, [allAircraft]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -29,7 +34,10 @@ export default function EngineRoom() {
   return (
     <div className="engine-room">
       <div className="er-header">
-        <h1>Engine Room Diagnostic Dashboard</h1>
+        <div>
+          <h1>Engine Room Diagnostic Dashboard v1.1</h1>
+          <p className="label" style={{ marginTop: 4 }}>Last data update: {lastUpdate.toLocaleTimeString()}</p>
+        </div>
         <div className="er-actions">
           <a href="/" className="btn">Exit Diagnostic Mode</a>
         </div>
