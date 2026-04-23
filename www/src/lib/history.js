@@ -67,7 +67,7 @@ export function addToHistory(entries, aircraft) {
 
 /**
  * React hook that manages the observation history, backed by sessionStorage.
- * @returns {{ history: Array, addEntry: (aircraft: Object) => void }}
+ * @returns {{ history: Array, addEntry: (aircraft: Object) => void, addEntries: (aircraftList: Object[]) => void }}
  */
 export function useHistory() {
   const [history, setHistory] = useState(() => loadHistory())
@@ -80,5 +80,17 @@ export function useHistory() {
     })
   }, [])
 
-  return { history, addEntry }
+  const addEntries = useCallback((aircraftList) => {
+    if (!aircraftList || aircraftList.length === 0) return
+    setHistory(prev => {
+      let next = prev
+      for (const ac of aircraftList) {
+        next = addToHistory(next, ac)
+      }
+      if (next !== prev) saveHistory(next)
+      return next
+    })
+  }, [])
+
+  return { history, addEntry, addEntries }
 }
