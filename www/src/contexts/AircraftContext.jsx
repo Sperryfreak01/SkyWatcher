@@ -63,7 +63,6 @@ export function AircraftProvider({ children }) {
     <AircraftContext.Provider value={{
       currentAircraft, setCurrentAircraft,
       visibleAircraft, setVisibleAircraft,
-      allAircraft, setAllAircraft,
       history,
       pollingStatus, setPollingStatus,
       enrichment,
