@@ -158,7 +158,7 @@ export function filterVisible(aircraft, observer) {
  * @param {number} [intervalMs=10000]  Poll interval in milliseconds.
  */
 export function useAdsbPoller(intervalMs = 10_000) {
-  const { setCurrentAircraft, setVisibleAircraft, setPollingStatus } =
+  const { setCurrentAircraft, setVisibleAircraft, setAllAircraft, setPollingStatus } =
     useContext(AircraftContext)
   const { observer } = useContext(SettingsContext)
 
@@ -172,6 +172,7 @@ export function useAdsbPoller(intervalMs = 10_000) {
   // Stable references from useState — safe to list in deps without churn.
   const setCurrentRef = useRef(setCurrentAircraft)
   const setVisibleRef = useRef(setVisibleAircraft)
+  const setAllRef = useRef(setAllAircraft)
   const setStatusRef = useRef(setPollingStatus)
 
   useEffect(() => {
@@ -199,6 +200,7 @@ export function useAdsbPoller(intervalMs = 10_000) {
         const visible = filterVisible(raw, observerRef.current)
 
         setVisibleRef.current(visible)
+        setAllRef.current(raw)
         setCurrentRef.current(prev => {
           if (prev) {
             const updated = visible.find(a => a.hex === prev.hex)
