@@ -199,7 +199,13 @@ export function useAdsbPoller(intervalMs = 10_000) {
         const visible = filterVisible(raw, observerRef.current)
 
         setVisibleRef.current(visible)
-        setCurrentRef.current(visible[0] ?? null)
+        setCurrentRef.current(prev => {
+          if (prev) {
+            const updated = visible.find(a => a.hex === prev.hex)
+            if (updated) return updated
+          }
+          return visible[0] ?? null
+        })
         setStatusRef.current('active')
       } catch (err) {
         if (err.name === 'AbortError') return  // Expected on cleanup
