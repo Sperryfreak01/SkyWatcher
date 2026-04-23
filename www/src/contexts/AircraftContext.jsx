@@ -5,6 +5,7 @@ import { useHistory } from '../lib/history'
 export const AircraftContext = createContext({
   currentAircraft: null,
   visibleAircraft: [],
+  allAircraft: [],
   history: [],
   pollingStatus: 'idle',
   enrichment: null,
@@ -14,6 +15,7 @@ export const AircraftContext = createContext({
 export function AircraftProvider({ children }) {
   const [currentAircraft, setCurrentAircraft] = useState(null)
   const [visibleAircraft, setVisibleAircraft] = useState([])
+  const [allAircraft, setAllAircraft] = useState([])
   const [pollingStatus, setPollingStatus] = useState('idle')
   const [enrichment, setEnrichment] = useState(null)
   const [quota, setQuota] = useState(null)
@@ -63,6 +65,7 @@ export function AircraftProvider({ children }) {
     <AircraftContext.Provider value={{
       currentAircraft, setCurrentAircraft,
       visibleAircraft, setVisibleAircraft,
+      allAircraft, setAllAircraft,
       history,
       pollingStatus, setPollingStatus,
       enrichment,

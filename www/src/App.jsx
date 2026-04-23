@@ -11,6 +11,7 @@ import RoutePanel from './components/RoutePanel'
 import TransponderPanel from './components/TransponderPanel'
 import HistoryPanel from './components/HistoryPanel/HistoryPanel'
 import StatusBar from './components/StatusBar/StatusBar'
+import EngineRoom from './components/EngineRoom/EngineRoom'
 import { useGeolocation, GEOLOCATION_FAILURE_THRESHOLD } from './lib/geolocation'
 import { fmtDist } from './lib/units'
 
@@ -136,116 +137,113 @@ function AppShell() {
 
   return (
     <div className="app">
-      <StatusBar orientation={orientation} />
-      {debugMode && (
-        <div style={{
-          position: 'fixed', bottom: 12, left: 12, zIndex: 9999,
-          background: 'rgba(0,0,0,0.75)', color: '#0f0', fontFamily: 'monospace',
-          fontSize: 13, padding: '6px 10px', borderRadius: 4, pointerEvents: 'none'
-        }}>
-          heading: {Math.round(heading)}° | perm: {orientation.permissionState} | supported: {String(orientation.isSupported)}
-        </div>
-      )}
-
-      {showWeather ? (
-        <WeatherPanel />
+      {debugMode ? (
+        <EngineRoom />
       ) : (
-        <div className="main">
-          <div className="left-pane">
-            <div className="corners-top">
-              <div className="mode-selector">
-                <button
-                  className={locationMode === 'home' ? 'active' : ''}
-                  onClick={() => updateSettings({ locationMode: 'home' })}
-                >
-                  Home
-                </button>
-                <button
-                  className={locationMode === 'work' ? 'active' : ''}
-                  disabled={!workObserver}
-                  onClick={() => updateSettings({ locationMode: 'work' })}
-                >
-                  Work
-                </button>
-                {geo.isSupported && !geo.isDenied && (
-                  <button
-                    className={locationMode === 'field' ? 'active' : ''}
-                    onClick={() => updateSettings({ locationMode: 'field' })}
-                  >
-                    Field
-                  </button>
-                )}
+        <>
+          <StatusBar orientation={orientation} />
+
+          {showWeather ? (
+            <WeatherPanel />
+          ) : (
+            <div className="main">
+              <div className="left-pane">
+                <div className="corners-top">
+                  <div className="mode-selector">
+                    <button
+                      className={locationMode === 'home' ? 'active' : ''}
+                      onClick={() => updateSettings({ locationMode: 'home' })}
+                    >
+                      Home
+                    </button>
+                    <button
+                      className={locationMode === 'work' ? 'active' : ''}
+                      disabled={!workObserver}
+                      onClick={() => updateSettings({ locationMode: 'work' })}
+                    >
+                      Work
+                    </button>
+                    {geo.isSupported && !geo.isDenied && (
+                      <button
+                        className={locationMode === 'field' ? 'active' : ''}
+                        onClick={() => updateSettings({ locationMode: 'field' })}
+                      >
+                        Field
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="section-title">Overhead now</h2>
+                    <div className="label">Where to look</div>
+                  </div>
+                  <div className="chart-toggle">
+                    <button
+                      className={variant === 'classic' ? 'active' : ''}
+                      onClick={() => updateSettings({ chartVariant: 'classic' })}
+                      title="Classic: top-down polar compass view showing azimuth and elevation rings"
+                    >
+                      Classic
+                    </button>
+                    <button
+                      className={variant === 'dome' ? 'active' : ''}
+                      onClick={() => updateSettings({ chartVariant: 'dome' })}
+                      title="Dome: perspective projection showing the sky as a curved bowl"
+                    >
+                      Dome
+                    </button>
+                  </div>
+                </div>
+
+                <div className="chart-wrap">
+                  <SkyChart
+                    variant={variant}
+                    loading={pollingStatus === 'idle'}
+                    rotation={heading}
+                    compassActive={permissionState === 'granted'}
+                  />
+                </div>
+
+                <div className="bearing-strip">
+                  <div className="stat lg">
+                    <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
+                    <div className="stat-v accent mono">
+                      {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
+                    </div>
+                    <div className="stat-sub">
+                      {currentAircraft
+                        ? permissionState === 'granted'
+                          ? azToRelative(currentAircraft.az, heading)
+                          : azToCardinal(currentAircraft.az)
+                        : ''}
+                    </div>
+                  </div>
+                  <div className="stat lg">
+                    <div className="stat-k">Elevation</div>
+                    <div className="stat-v accent mono">
+                      {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
+                    </div>
+                    <div className="stat-sub">
+                      {currentAircraft ? elToBand(currentAircraft.el) : ''}
+                    </div>
+                  </div>
+                  <div className="stat lg">
+                    <div className="stat-k">Distance</div>
+                    <div className="stat-v mono">
+                      {currentAircraft ? fmtDist(currentAircraft.distance3d) : '—'}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h2 className="section-title">Overhead now</h2>
-                <div className="label">Where to look</div>
-              </div>
-              <div className="chart-toggle">
-                <button
-                  className={variant === 'classic' ? 'active' : ''}
-                  onClick={() => updateSettings({ chartVariant: 'classic' })}
-                  title="Classic: top-down polar compass view showing azimuth and elevation rings"
-                >
-                  Classic
-                </button>
-                <button
-                  className={variant === 'dome' ? 'active' : ''}
-                  onClick={() => updateSettings({ chartVariant: 'dome' })}
-                  title="Dome: perspective projection showing the sky as a curved bowl"
-                >
-                  Dome
-                </button>
+
+              <div className="right-pane">
+                <IdentityPanel />
+                <RoutePanel />
+                <TransponderPanel />
+                <HistoryPanel />
               </div>
             </div>
-
-            <div className="chart-wrap">
-              <SkyChart
-                variant={variant}
-                loading={pollingStatus === 'idle'}
-                rotation={heading}
-                compassActive={permissionState === 'granted'}
-              />
-            </div>
-
-            <div className="bearing-strip">
-              <div className="stat lg">
-                <div className="stat-k" title="Azimuth: compass direction to the aircraft (0°=North, 90°=East, 180°=South)">Azimuth</div>
-                <div className="stat-v accent mono">
-                  {currentAircraft ? `${Math.round(currentAircraft.az)}°` : '—'}
-                </div>
-                <div className="stat-sub">
-                  {currentAircraft
-                    ? permissionState === 'granted'
-                      ? azToRelative(currentAircraft.az, heading)
-                      : azToCardinal(currentAircraft.az)
-                    : ''}
-                </div>
-              </div>
-              <div className="stat lg">
-                <div className="stat-k">Elevation</div>
-                <div className="stat-v accent mono">
-                  {currentAircraft ? `${Math.round(currentAircraft.el)}°` : '—'}
-                </div>
-                <div className="stat-sub">
-                  {currentAircraft ? elToBand(currentAircraft.el) : ''}
-                </div>
-              </div>
-              <div className="stat lg">
-                <div className="stat-k">Distance</div>
-                <div className="stat-v mono">
-                  {currentAircraft ? fmtDist(currentAircraft.distance3d) : '—'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="right-pane">
-            <IdentityPanel />
-            <RoutePanel />
-            <TransponderPanel />
-            <HistoryPanel />
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   )

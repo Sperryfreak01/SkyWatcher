@@ -3,6 +3,7 @@ import cors from 'cors';
 import { writeFile, readFile, rename, mkdir, unlink, chmod } from 'fs/promises';
 import { resolve } from 'path';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 
 // ─── Environment / config ────────────────────────────────────────────────────
 
@@ -261,21 +262,69 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
+// ─── Diagnostics / Metrics ───────────────────────────────────────────────────
+
+const sessionActivity = new Map();
+let lastPollDuration = 0;
+const latencyBuffer = [];
+
+function trackLatency(duration) {
+  lastPollDuration = duration;
+  latencyBuffer.push(duration);
+  if (latencyBuffer.length > 100) latencyBuffer.shift();
+}
+
+function getAvgPollDuration() {
+  if (latencyBuffer.length === 0) return 0;
+  return Math.round(latencyBuffer.reduce((a, b) => a + b, 0) / latencyBuffer.length);
+}
+
+function getActiveSessions() {
+  const now = Date.now();
+  const ips = new Set();
+  for (const [ip, lastSeen] of sessionActivity.entries()) {
+    if (now - lastSeen < 10000) { // 10 seconds timeout
+      ips.add(ip);
+    } else {
+      sessionActivity.delete(ip);
+    }
+  }
+  return { activeSessions: ips.size, clientIps: ips };
+}
+
 // ─── GET /api/aircraft ────────────────────────────────────────────────────────
 
-app.get('/api/aircraft', async (_req, res) => {
+app.get('/api/aircraft', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+  sessionActivity.set(ip, Date.now());
+
   const url = `${runtimeConfig.adsbUrl}/data/aircraft.json`;
+  const start = performance.now();
   try {
     const upstream = await fetch(url);
     if (!upstream.ok) {
       throw new Error(`Upstream returned HTTP ${upstream.status}`);
     }
     const data = await upstream.json();
+    trackLatency(performance.now() - start);
     return res.json(data);
   } catch (err) {
+    trackLatency(performance.now() - start);
     console.error('[aircraft] upstream fetch failed:', err.message);
     return res.status(502).json({ aircraft: [], error: 'upstream unavailable' });
   }
+});
+
+// ─── GET /api/debug ───────────────────────────────────────────────────────────
+
+app.get('/api/debug', (req, res) => {
+  const { activeSessions, clientIps } = getActiveSessions();
+  const quotaState = getQuotaState();
+  res.json({
+    quota: { used: quotaState.used, limit: FA_DAILY_QUOTA },
+    sessions: { active: activeSessions, ips: Array.from(clientIps) },
+    latency: { last: Math.round(lastPollDuration), avg: getAvgPollDuration() }
+  });
 });
 
 // ─── GET /api/enrich/:callsign ────────────────────────────────────────────────
