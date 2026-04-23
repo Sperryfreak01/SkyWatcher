@@ -15,11 +15,12 @@ export const AircraftContext = createContext({
 export function AircraftProvider({ children }) {
   const [currentAircraft, setCurrentAircraft] = useState(null)
   const [visibleAircraft, setVisibleAircraft] = useState([])
+  const [allAircraft, setAllAircraft] = useState([])
   const [pollingStatus, setPollingStatus] = useState('idle')
   const [enrichment, setEnrichment] = useState(null)
   const [quota, setQuota] = useState(null)
 
-  const { history, addEntry, addEntries } = useHistory()
+  const { history, addEntries } = useHistory()
 
   useEffect(() => { getQuota().then(setQuota) }, [])
 
@@ -63,6 +64,7 @@ export function AircraftProvider({ children }) {
     <AircraftContext.Provider value={{
       currentAircraft, setCurrentAircraft,
       visibleAircraft, setVisibleAircraft,
+      allAircraft, setAllAircraft,
       history,
       pollingStatus, setPollingStatus,
       enrichment,
