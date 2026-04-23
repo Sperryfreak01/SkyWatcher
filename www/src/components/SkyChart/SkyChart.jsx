@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useMonotonicRotation } from '../../lib/rotation'
 
-// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, variant: 'classic'|'dome', loading: bool, rotation: number, compassActive: bool }
-export default function SkyChart({ aircraft = [], variant = 'classic', loading = false, rotation = 0, compassActive = false }) {
+// Props: { aircraft: Array<{az, el, hex, callsign, distance3d, track}>, currentAircraft, setCurrentAircraft, variant: 'classic'|'dome', loading: bool, rotation: number, compassActive: bool }
+export default function SkyChart({ aircraft = [], currentAircraft, setCurrentAircraft, variant = 'classic', loading = false, rotation = 0, compassActive = false }) {
   if (loading) {
     return <LoadingSweep />
   }
@@ -12,9 +12,9 @@ export default function SkyChart({ aircraft = [], variant = 'classic', loading =
   }
 
   return variant === 'dome' ? (
-    <DomeChart aircraft={aircraft} rotation={rotation} compassActive={compassActive} />
+    <DomeChart aircraft={aircraft} currentAircraft={currentAircraft} setCurrentAircraft={setCurrentAircraft} rotation={rotation} compassActive={compassActive} />
   ) : (
-    <ClassicChart aircraft={aircraft} rotation={rotation} compassActive={compassActive} />
+    <ClassicChart aircraft={aircraft} currentAircraft={currentAircraft} setCurrentAircraft={setCurrentAircraft} rotation={rotation} compassActive={compassActive} />
   )
 }
 
@@ -35,7 +35,7 @@ function azElToXY(az, el, cx, cy, r) {
 }
 
 // ─── Classic polar chart ─────────────────────────────────────────────────────
-function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
+function ClassicChart({ aircraft, currentAircraft, setCurrentAircraft, rotation = 0, compassActive = false }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -150,15 +150,17 @@ function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
         {/* Aircraft: render all, closest (index 0) gets primary accent */}
         {aircraft.map((ac, i) => {
           const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
-          const isPrimary = i === 0
+          const isPrimary = ac.hex === currentAircraft?.hex || (i === 0 && !currentAircraft)
           return (
             <AircraftMarker
               key={ac.hex || ac.callsign || i}
+              ac={ac}
               px={px} py={py}
               callsign={ac.callsign}
               track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
+              setCurrentAircraft={setCurrentAircraft}
             />
           )
         })}
@@ -169,7 +171,7 @@ function ClassicChart({ aircraft, rotation = 0, compassActive = false }) {
 }
 
 // ─── Dome chart (visual tweak: darker toward edges, radial gradient) ─────────
-function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
+function DomeChart({ aircraft, currentAircraft, setCurrentAircraft, rotation = 0, compassActive = false }) {
   const cards = [
     { a: 0, l: 'N' }, { a: 45, l: 'NE' }, { a: 90, l: 'E' }, { a: 135, l: 'SE' },
     { a: 180, l: 'S' }, { a: 225, l: 'SW' }, { a: 270, l: 'W' }, { a: 315, l: 'NW' },
@@ -278,15 +280,17 @@ function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
         {/* Aircraft */}
         {aircraft.map((ac, i) => {
           const [px, py] = azElToXY(ac.az, ac.el, CX, CY, R)
-          const isPrimary = i === 0
+          const isPrimary = ac.hex === currentAircraft?.hex || (i === 0 && !currentAircraft)
           return (
             <AircraftMarker
               key={ac.hex || ac.callsign || i}
+              ac={ac}
               px={px} py={py}
               callsign={ac.callsign}
               track={ac.track}
               isPrimary={isPrimary}
               rotation={-displayRot}
+              setCurrentAircraft={setCurrentAircraft}
             />
           )
         })}
@@ -297,7 +301,7 @@ function DomeChart({ aircraft, rotation = 0, compassActive = false }) {
 }
 
 // ─── Aircraft marker sub-component ──────────────────────────────────────────
-function AircraftMarker({ px, py, callsign, track, isPrimary, rotation = 0 }) {
+function AircraftMarker({ ac, px, py, callsign, track, isPrimary, rotation = 0, setCurrentAircraft }) {
   const transition = 'cx 0.5s ease, cy 0.5s ease'
   const labelW = (callsign ? callsign.length * 7 + 10 : 50)
 
@@ -307,7 +311,11 @@ function AircraftMarker({ px, py, callsign, track, isPrimary, rotation = 0 }) {
   const chevronRot = hasTrack ? (track + rotation) : rotation
 
   return (
-    <g className="sky-chart__aircraft">
+    <g
+      className="sky-chart__aircraft"
+      onClick={() => setCurrentAircraft?.(ac)}
+      style={{ cursor: 'pointer' }}
+    >
       {/* Sight line from center */}
       {isPrimary && (
         <line
