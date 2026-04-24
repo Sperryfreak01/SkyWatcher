@@ -19,28 +19,36 @@ export function useDeviceOrientation(gpsHeading = null) {
   const handleOrientation = useCallback((event) => {
     // Use != null so heading=0 (North) is treated as valid, not falsy
     const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
+    
     if (h != null) {
       // webkitCompassHeading is already CW from North; standard alpha is CCW so invert it
       const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
+      
       if (smoothedHeadingRef.current === null) {
         smoothedHeadingRef.current = correctedHeading
       } else {
         const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
         smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
       }
+      
+      console.log(`[orientation] event: ${event.type} | raw: ${h.toFixed(1)} | corrected: ${correctedHeading.toFixed(1)} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
       setNativeHeading(smoothedHeadingRef.current)
+    } else {
+      console.warn('[orientation] received event but heading data is null', event);
     }
   }, [])
 
   // Check if API is available; auto-register on Android (no permission dialog needed)
   useEffect(() => {
     const hasApi = window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent
+    console.log(`[orientation] init: hasApi=${!!hasApi}`);
     if (!hasApi) return
     setIsSupported(true)
 
     // iOS requires an explicit user gesture to call requestPermission — skip auto-register
     const needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function'
+    console.log(`[orientation] init: needsPermission=${needsPermission}`);
     if (needsPermission) return
 
     // Android/non-iOS: register immediately without a button tap
@@ -48,19 +56,27 @@ export function useDeviceOrientation(gpsHeading = null) {
     const eventName = 'ondeviceorientationabsolute' in window
       ? 'deviceorientationabsolute'
       : 'deviceorientation'
+    
+    console.log(`[orientation] auto-registering: ${eventName}`);
     window.addEventListener(eventName, handleOrientation, true)
     listenerRef.current = { eventName, handler: handleOrientation }
     setPermissionState('granted')
   }, [handleOrientation])
 
   const requestPermission = async () => {
+    console.log('[orientation] requestPermission called');
     // Skip if listener already registered to prevent accumulation
-    if (listenerRef.current) return true
+    if (listenerRef.current) {
+      console.log('[orientation] already has listener, skipping');
+      return true
+    }
 
     // iOS 13+ requires explicit permission
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
+        console.log('[orientation] requesting iOS permission...');
         const state = await DeviceOrientationEvent.requestPermission()
+        console.log(`[orientation] iOS permission state: ${state}`);
         setPermissionState(state)
         if (state === 'granted') {
           window.addEventListener('deviceorientation', handleOrientation, true)
@@ -76,6 +92,8 @@ export function useDeviceOrientation(gpsHeading = null) {
       const eventName = 'ondeviceorientationabsolute' in window
         ? 'deviceorientationabsolute'
         : 'deviceorientation'
+      
+      console.log(`[orientation] manual-registering: ${eventName}`);
       window.addEventListener(eventName, handleOrientation, true)
       listenerRef.current = { eventName, handler: handleOrientation }
       setPermissionState('granted')
