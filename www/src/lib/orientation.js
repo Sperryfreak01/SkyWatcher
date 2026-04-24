@@ -2,126 +2,141 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 /**
  * React hook to access device orientation (compass heading).
- * Handles iOS permission request logic and Android 'absolute' orientation.
- * Accepts `gpsHeading` as a fallback when native orientation is unavailable.
+ * Highly verbose version for troubleshooting Tesla sensor issues.
  */
 export function useDeviceOrientation(gpsHeading = null) {
   const [nativeHeading, setNativeHeading] = useState(0)
   const [isSupported, setIsSupported] = useState(false)
-  const [permissionState, setPermissionState] = useState('unknown') // 'unknown' | 'granted' | 'denied'
+  const [permissionState, setPermissionState] = useState('unknown')
 
-  const listenerRef = useRef(null) // { eventName, handler } or null
   const smoothedHeadingRef = useRef(null)
+  const sensorRef = useRef(null)
 
-  const ALPHA = 0.15 // smoothing factor: lower = smoother, higher = more responsive
+  const ALPHA = 0.15
 
-  // handleOrientation must be declared before any useEffect that references it
-  const handleOrientation = useCallback((event) => {
-    // Log available keys to see what the browser is actually sending
-    const availableKeys = [];
-    if (event.webkitCompassHeading != null) availableKeys.push('webkitCompassHeading');
-    if (event.alpha != null) availableKeys.push('alpha');
-    if (event.beta != null) availableKeys.push('beta');
-    if (event.gamma != null) availableKeys.push('gamma');
-    if (event.absolute != null) availableKeys.push('absolute');
-
-    const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
-    
-    if (h != null) {
-      // webkitCompassHeading is already CW from North; standard alpha is CCW so invert it
-      const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
-      
-      if (smoothedHeadingRef.current === null) {
-        smoothedHeadingRef.current = correctedHeading
-      } else {
-        const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
-        smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
-      }
-      
-      console.log(`[orientation] event: ${event.type} | keys: ${availableKeys.join(',')} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
-      setNativeHeading(smoothedHeadingRef.current)
+  const updateHeading = useCallback((correctedHeading, type) => {
+    if (smoothedHeadingRef.current === null) {
+      smoothedHeadingRef.current = correctedHeading
     } else {
-      console.warn(`[orientation] ${event.type} has NO data. Keys present: ${Object.keys(event).filter(k => typeof event[k] !== 'function').join(',')}`);
+      const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
+      smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
     }
-  }, [])
+    
+    // Log every 100th event to show activity without flooding
+    if (Math.random() < 0.01) {
+      console.log(`[orientation] DATA: ${type} | current: ${correctedHeading.toFixed(1)} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
+    }
+    setNativeHeading(smoothedHeadingRef.current)
+  }, []);
 
-  // Check if API is available; auto-register on Android (no permission dialog needed)
+  const handleOrientation = useCallback((event) => {
+    const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
+    if (h != null) {
+      const correctedHeading = event.webkitCompassHeading != null ? h : (360 - h) % 360
+      updateHeading(correctedHeading, event.type);
+    } else {
+      if (Math.random() < 0.01) {
+        const keys = Object.keys(event).filter(k => typeof event[k] !== 'function').join(',');
+        console.warn(`[orientation] ${event.type} fire but null. keys: ${keys}`);
+      }
+    }
+  }, [updateHeading])
+
+  const setupGenericSensor = useCallback(async () => {
+    if (!window.AbsoluteOrientationSensor) {
+      console.warn('[orientation] AbsoluteOrientationSensor API not supported');
+      return false;
+    }
+
+    try {
+      console.log('[orientation] Querying Sensor permissions...');
+      const results = await Promise.all([
+        navigator.permissions.query({ name: 'accelerometer' }).catch(() => ({ state: 'n/a' })),
+        navigator.permissions.query({ name: 'magnetometer' }).catch(() => ({ state: 'n/a' })),
+        navigator.permissions.query({ name: 'gyroscope' }).catch(() => ({ state: 'n/a' }))
+      ]);
+      console.log(`[orientation] Permissions: acc=${results[0].state}, mag=${results[1].state}, gyro=${results[2].state}`);
+
+      const sensor = new window.AbsoluteOrientationSensor({ frequency: 20, referenceFrame: 'screen' });
+      
+      sensor.addEventListener('reading', () => {
+        const q = sensor.quaternion;
+        // Basic heading from quaternion
+        const heading = Math.atan2(2*q[0]*q[1] + 2*q[2]*q[3], 1 - 2*q[1]*q[1] - 2*q[2]*q[2]) * (180/Math.PI);
+        const correctedHeading = (360 - heading) % 360;
+        updateHeading(correctedHeading, 'AbsoluteSensor');
+      });
+
+      sensor.addEventListener('error', e => {
+        console.error(`[orientation] Sensor error: ${e.error.name} - ${e.error.message}`);
+      });
+
+      console.log('[orientation] Starting AbsoluteOrientationSensor...');
+      sensor.start();
+      sensorRef.current = sensor;
+      return true;
+    } catch (err) {
+      console.error('[orientation] Generic Sensor failure:', err);
+      return false;
+    }
+  }, [updateHeading]);
+
   useEffect(() => {
-    const hasApi = window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent
+    const hasOrient = 'DeviceOrientationEvent' in window;
+    const hasAbsolute = 'DeviceOrientationAbsoluteEvent' in window;
+    const hasSensor = 'AbsoluteOrientationSensor' in window;
     const isSecure = window.isSecureContext;
-    console.log(`[orientation] init: hasApi=${!!hasApi} | isSecure=${!!isSecure}`);
     
-    if (!hasApi) return
-    setIsSupported(true)
+    console.log(`[orientation] init: secure=${isSecure} | orient=${hasOrient} | abs=${hasAbsolute} | sensor=${hasSensor}`);
 
-    // iOS requires an explicit user gesture to call requestPermission — skip auto-register
-    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function'
-    console.log(`[orientation] init: needsPermission=${needsPermission}`);
-    if (needsPermission) return
-
-    // Android/non-iOS: register immediately without a button tap
-    if (listenerRef.current) return
-    const eventName = 'ondeviceorientationabsolute' in window
-      ? 'deviceorientationabsolute'
-      : 'deviceorientation'
+    if (!hasOrient && !hasAbsolute && !hasSensor) {
+      console.error('[orientation] No orientation APIs found');
+      return;
+    }
     
-    console.log(`[orientation] auto-registering: ${eventName}`);
-    window.addEventListener(eventName, handleOrientation, true)
-    listenerRef.current = { eventName, handler: handleOrientation }
-    setPermissionState('granted')
-  }, [handleOrientation])
+    setIsSupported(true);
+
+    // If not iOS, start immediately
+    const isIOS = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+    if (!isIOS) {
+      console.log('[orientation] auto-starting listeners');
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      setupGenericSensor();
+      setPermissionState('granted');
+    } else {
+      console.log('[orientation] iOS detected, awaiting user gesture');
+    }
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      if (sensorRef.current) sensorRef.current.stop();
+    }
+  }, [handleOrientation, setupGenericSensor])
 
   const requestPermission = async () => {
-    console.log('[orientation] requestPermission called');
-    // Skip if listener already registered to prevent accumulation
-    if (listenerRef.current) {
-      console.log('[orientation] already has listener, skipping');
-      return true
-    }
-
-    // iOS 13+ requires explicit permission
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    console.log('[orientation] manual requestPermission triggered');
+    const isIOS = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+    
+    if (isIOS) {
       try {
-        console.log('[orientation] requesting iOS permission...');
-        const state = await DeviceOrientationEvent.requestPermission()
-        console.log(`[orientation] iOS permission state: ${state}`);
-        setPermissionState(state)
+        const state = await DeviceOrientationEvent.requestPermission();
+        console.log(`[orientation] iOS permission: ${state}`);
+        setPermissionState(state);
         if (state === 'granted') {
-          window.addEventListener('deviceorientation', handleOrientation, true)
-          listenerRef.current = { eventName: 'deviceorientation', handler: handleOrientation }
-          return true
+          window.addEventListener('deviceorientation', handleOrientation, true);
         }
-      } catch (err) {
-        console.error('[orientation] Permission request failed:', err)
-        setPermissionState('denied')
-      }
+      } catch (e) { console.error('[orientation] iOS error', e); }
     } else {
-      // Non-iOS: prefer absolute orientation (Android), fall back to relative
-      const eventName = 'ondeviceorientationabsolute' in window
-        ? 'deviceorientationabsolute'
-        : 'deviceorientation'
-      
-      console.log(`[orientation] manual-registering: ${eventName}`);
-      window.addEventListener(eventName, handleOrientation, true)
-      listenerRef.current = { eventName, handler: handleOrientation }
-      setPermissionState('granted')
-      return true
+      console.log('[orientation] re-checking standard + sensor listeners');
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      setupGenericSensor();
+      setPermissionState('granted');
     }
-    return false
-  }
+  };
 
-  // Remove only the event type that was actually registered
-  useEffect(() => {
-    return () => {
-      if (listenerRef.current) {
-        window.removeEventListener(listenerRef.current.eventName, listenerRef.current.handler, true)
-        listenerRef.current = null
-      }
-    }
-  }, [])
-
-  const heading = permissionState === 'granted' ? nativeHeading : (gpsHeading ?? 0)
-
+  const heading = (permissionState === 'granted' || permissionState === 'unknown') ? nativeHeading : (gpsHeading ?? 0)
   return { heading, isSupported, permissionState, requestPermission }
 }
