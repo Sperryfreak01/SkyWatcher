@@ -17,7 +17,14 @@ export function useDeviceOrientation(gpsHeading = null) {
 
   // handleOrientation must be declared before any useEffect that references it
   const handleOrientation = useCallback((event) => {
-    // Use != null so heading=0 (North) is treated as valid, not falsy
+    // Log available keys to see what the browser is actually sending
+    const availableKeys = [];
+    if (event.webkitCompassHeading != null) availableKeys.push('webkitCompassHeading');
+    if (event.alpha != null) availableKeys.push('alpha');
+    if (event.beta != null) availableKeys.push('beta');
+    if (event.gamma != null) availableKeys.push('gamma');
+    if (event.absolute != null) availableKeys.push('absolute');
+
     const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
     
     if (h != null) {
@@ -31,17 +38,19 @@ export function useDeviceOrientation(gpsHeading = null) {
         smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
       }
       
-      console.log(`[orientation] event: ${event.type} | raw: ${h.toFixed(1)} | corrected: ${correctedHeading.toFixed(1)} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
+      console.log(`[orientation] event: ${event.type} | keys: ${availableKeys.join(',')} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
       setNativeHeading(smoothedHeadingRef.current)
     } else {
-      console.warn('[orientation] received event but heading data is null', event);
+      console.warn(`[orientation] ${event.type} has NO data. Keys present: ${Object.keys(event).filter(k => typeof event[k] !== 'function').join(',')}`);
     }
   }, [])
 
   // Check if API is available; auto-register on Android (no permission dialog needed)
   useEffect(() => {
     const hasApi = window.DeviceOrientationEvent || window.DeviceOrientationAbsoluteEvent
-    console.log(`[orientation] init: hasApi=${!!hasApi}`);
+    const isSecure = window.isSecureContext;
+    console.log(`[orientation] init: hasApi=${!!hasApi} | isSecure=${!!isSecure}`);
+    
     if (!hasApi) return
     setIsSupported(true)
 
