@@ -6,15 +6,7 @@ const RETRY_DELAYS = [500, 1000]
 export const GEOLOCATION_FAILURE_THRESHOLD = 2
 
 /**
- * React hook for live geolocation with retry logic and permission tracking.
- *
- * @param {boolean} enabled  Enable/disable geolocation polling.
- * @returns {{ position: {lat,lon,accuracy}|null, heading: number|null, isSupported: boolean,
- *   isDenied: boolean, consecutiveFailures: number, error: string|null }}
- *
- * Polling interval: 3s. Permission-denied retry: [500ms, 1000ms] backoff.
- * `isDenied` is set permanently after retries are exhausted — UI should hide
- * the Field Mode toggle at that point. Cleanup runs on unmount or disable.
+ * React hook for live geolocation with retry logic and bearing calculation.
  */
 export function useGeolocation(enabled) {
   const isSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator
@@ -42,6 +34,18 @@ export function useGeolocation(enabled) {
       }
     }
 
+    function calculateBearing(lat1, lon1, lat2, lon2) {
+      const phi1 = lat1 * Math.PI / 180
+      const phi2 = lat2 * Math.PI / 180
+      const deltaLambda = (lon2 - lon1) * Math.PI / 180
+      
+      const y = Math.sin(deltaLambda) * Math.cos(phi2)
+      const x = Math.cos(phi1) * Math.sin(phi2) -
+                Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda)
+      const brng = Math.atan2(y, x)
+      return (brng * 180 / Math.PI + 360) % 360
+    }
+
     function handleSuccess(pos) {
       clearRetryTimeout()
       retryCountRef.current = 0
@@ -51,23 +55,19 @@ export function useGeolocation(enabled) {
 
       const newLat = pos.coords.latitude
       const newLon = pos.coords.longitude
-      let calculatedHeading = pos.coords.heading
+      let finalHeading = pos.coords.heading
 
-      // If browser doesn't provide heading but we have movement, calculate it from coordinate delta
-      if (calculatedHeading === null && lastPosRef.current && pos.coords.speed > 0.5) {
-        const lat1 = lastPosRef.current.lat * Math.PI / 180
-        const lon1 = lastPosRef.current.lon * Math.PI / 180
-        const lat2 = newLat * Math.PI / 180
-        const lon2 = newLon * Math.PI / 180
-        
-        const y = Math.sin(lon2 - lon1) * Math.cos(lat2)
-        const x = Math.cos(lat1) * Math.sin(lat2) -
-                  Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1)
-        const brng = Math.atan2(y, x)
-        calculatedHeading = (brng * 180 / Math.PI + 360) % 360
+      // If browser doesn't provide heading but we have movement, calculate it
+      if (finalHeading === null && lastPosRef.current && (pos.coords.speed > 0.5 || !pos.coords.speed)) {
+        // Distance check: only update heading if moved enough to overcome jitter
+        const dist = Math.sqrt(Math.pow(newLat - lastPosRef.current.lat, 2) + Math.pow(newLon - lastPosRef.current.lon, 2))
+        if (dist > 0.0001) { // roughly 10 meters
+           finalHeading = calculateBearing(lastPosRef.current.lat, lastPosRef.current.lon, newLat, newLon)
+           lastPosRef.current = { lat: newLat, lon: newLon }
+        }
+      } else {
+        lastPosRef.current = { lat: newLat, lon: newLon }
       }
-
-      lastPosRef.current = { lat: newLat, lon: newLon }
 
       setPosition({
         lat: newLat,
@@ -77,7 +77,10 @@ export function useGeolocation(enabled) {
         altitudeAccuracy: pos.coords.altitudeAccuracy,
         speed: pos.coords.speed
       })
-      setHeading(calculatedHeading)
+      
+      if (finalHeading !== null) {
+        setHeading(finalHeading)
+      }
     }
 
     function handleError(err) {
@@ -102,6 +105,9 @@ export function useGeolocation(enabled) {
         setError(err.message || 'Location unavailable')
       }
     }
+
+    // Initial check
+    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, GEO_OPTIONS)
 
     intervalRef.current = setInterval(() => {
       if (deniedRef.current) return
