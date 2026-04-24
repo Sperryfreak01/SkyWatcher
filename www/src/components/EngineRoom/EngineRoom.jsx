@@ -3,12 +3,16 @@ import { AircraftContext } from '../../contexts/AircraftContext';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { isVisible } from '../../lib/adsb';
 import { useDeviceOrientation } from '../../lib/orientation';
+import { useGeolocation } from '../../lib/geolocation';
 import './EngineRoom.css';
 
 export default function EngineRoom() {
   const { allAircraft } = useContext(AircraftContext);
-  const { observer } = useContext(SettingsContext);
-  const orientation = useDeviceOrientation();
+  const { observer, locationMode } = useContext(SettingsContext);
+  
+  // Get GPS data (Tesla fallback)
+  const geo = useGeolocation(locationMode === 'field' || true); // Force on for debug
+  const orientation = useDeviceOrientation(geo.position?.heading);
   const { heading, isSupported, permissionState, requestPermission } = orientation;
   
   const [metrics, setMetrics] = useState(null);
@@ -86,7 +90,7 @@ export default function EngineRoom() {
     <div className="engine-room">
       <div className="er-header">
         <div>
-          <h1>Engine Room Diagnostic Dashboard v1.3</h1>
+          <h1>Engine Room Diagnostic Dashboard v1.4</h1>
           <p className="label" style={{ marginTop: 4 }}>Last data update: {lastUpdate.toLocaleTimeString()}</p>
         </div>
         <div className="er-actions">
@@ -99,17 +103,21 @@ export default function EngineRoom() {
         <div className="er-metrics-grid">
           {/* Device Orientation Card */}
           <div className="er-metric-card">
-            <h3>Device Orientation</h3>
+            <h3>Orientation & GPS</h3>
             <div className="er-metric-row">
-              <span className="er-label">Heading:</span>
+              <span className="er-label">Active Heading:</span>
               <span className="er-value accent">{Math.round(heading)}°</span>
             </div>
             <div className="er-metric-row">
-              <span className="er-label">Supported:</span>
+              <span className="er-label">GPS Heading:</span>
+              <span className="er-value">{geo.position?.heading != null ? `${Math.round(geo.position.heading)}°` : 'null'}</span>
+            </div>
+            <div className="er-metric-row">
+              <span className="er-label">Sensors Supported:</span>
               <span className="er-value">{String(isSupported)}</span>
             </div>
             <div className="er-metric-row">
-              <span className="er-label">Permission:</span>
+              <span className="er-label">Sensor Perm:</span>
               <span className="er-value">{permissionState}</span>
             </div>
             {isSupported && permissionState !== 'granted' && (
@@ -118,14 +126,14 @@ export default function EngineRoom() {
                 style={{ width: '100%', marginTop: 12, padding: '8px' }}
                 onClick={requestPermission}
               >
-                Enable Compass
+                Enable Sensors
               </button>
             )}
           </div>
 
           {/* Orientation Event Log */}
           <div className="er-metric-card">
-            <h3>Orientation Event Log</h3>
+            <h3>Event Log</h3>
             <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '10px', fontFamily: 'var(--mono)' }}>
               {uiLogs.length > 0 ? uiLogs.map(log => (
                 <div key={log.id} style={{ borderBottom: '1px solid var(--line-2)', padding: '2px 0', color: log.type === 'error' ? 'var(--warn)' : 'inherit' }}>
