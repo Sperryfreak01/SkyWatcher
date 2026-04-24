@@ -57,12 +57,22 @@ export function useGeolocation(enabled) {
       const newLon = pos.coords.longitude
       let finalHeading = pos.coords.heading
 
+      if (Math.random() < 0.1) {
+        console.log(`[orientation] GPS: lat=${newLat.toFixed(4)}, lon=${newLon.toFixed(4)}, rawHeading=${finalHeading}, speed=${pos.coords.speed}`);
+      }
+
       // If browser doesn't provide heading but we have movement, calculate it
-      if (finalHeading === null && lastPosRef.current && (pos.coords.speed > 0.5 || !pos.coords.speed)) {
-        // Distance check: only update heading if moved enough to overcome jitter
-        const dist = Math.sqrt(Math.pow(newLat - lastPosRef.current.lat, 2) + Math.pow(newLon - lastPosRef.current.lon, 2))
-        if (dist > 0.0001) { // roughly 10 meters
+      if (finalHeading === null && lastPosRef.current) {
+        const dLat = newLat - lastPosRef.current.lat;
+        const dLon = newLon - lastPosRef.current.lon;
+        const distSq = dLat*dLat + dLon*dLon;
+        
+        // roughly 2-3 meters threshold
+        if (distSq > 0.0000001) { 
            finalHeading = calculateBearing(lastPosRef.current.lat, lastPosRef.current.lon, newLat, newLon)
+           if (Math.random() < 0.5) {
+             console.log(`[orientation] Calculated bearing: ${finalHeading.toFixed(1)}°`);
+           }
            lastPosRef.current = { lat: newLat, lon: newLon }
         }
       } else {
@@ -75,12 +85,11 @@ export function useGeolocation(enabled) {
         accuracy: pos.coords.accuracy,
         altitude: pos.coords.altitude,
         altitudeAccuracy: pos.coords.altitudeAccuracy,
-        speed: pos.coords.speed
+        speed: pos.coords.speed,
+        heading: finalHeading // Also put in position for convenience
       })
       
-      if (finalHeading !== null) {
-        setHeading(finalHeading)
-      }
+      setHeading(finalHeading)
     }
 
     function handleError(err) {
@@ -103,6 +112,7 @@ export function useGeolocation(enabled) {
         failuresRef.current += 1
         setConsecutiveFailures(failuresRef.current)
         setError(err.message || 'Location unavailable')
+        console.warn(`[orientation] GPS error: ${err.message}`);
       }
     }
 
