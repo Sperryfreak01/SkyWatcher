@@ -90,7 +90,7 @@ export default function EngineRoom() {
     <div className="engine-room">
       <div className="er-header">
         <div>
-          <h1>Engine Room Diagnostic Dashboard v1.6</h1>
+          <h1>Engine Room Diagnostic Dashboard v1.7</h1>
           <p className="label" style={{ marginTop: 4 }}>Last data update: {lastUpdate.toLocaleTimeString()}</p>
         </div>
         <div className="er-actions">
