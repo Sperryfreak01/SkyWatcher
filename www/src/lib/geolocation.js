@@ -9,7 +9,7 @@ export const GEOLOCATION_FAILURE_THRESHOLD = 2
  * React hook for live geolocation with retry logic and permission tracking.
  *
  * @param {boolean} enabled  Enable/disable geolocation polling.
- * @returns {{ position: {lat,lon,accuracy}|null, isSupported: boolean,
+ * @returns {{ position: {lat,lon,accuracy}|null, heading: number|null, isSupported: boolean,
  *   isDenied: boolean, consecutiveFailures: number, error: string|null }}
  *
  * Polling interval: 3s. Permission-denied retry: [500ms, 1000ms] backoff.
@@ -20,6 +20,7 @@ export function useGeolocation(enabled) {
   const isSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator
 
   const [position, setPosition] = useState(null)
+  const [heading, setHeading] = useState(null)
   const [isDenied, setIsDenied] = useState(false)
   const [error, setError] = useState(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
@@ -51,6 +52,7 @@ export function useGeolocation(enabled) {
         lon: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
       })
+      setHeading(pos.coords.heading)
     }
 
     function handleError(err) {
@@ -92,6 +94,7 @@ export function useGeolocation(enabled) {
 
   return {
     position,
+    heading,
     isSupported,
     isDenied,
     consecutiveFailures,

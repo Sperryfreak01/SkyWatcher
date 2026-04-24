@@ -39,7 +39,12 @@ export default function App() {
             elev: parseFloat(cfg.elev),
             obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
           })
-          captureHomeObserver()
+          captureHomeObserver({
+            lat: parseFloat(cfg.lat),
+            lon: parseFloat(cfg.lon),
+            elev: parseFloat(cfg.elev),
+            obstructionAngle: parseFloat(cfg.obstructionAngle ?? 14.2),
+          })
         }
 
         if (cfg.workLat && cfg.workLon && cfg.workElev) {
@@ -96,13 +101,14 @@ function elToBand(el) {
 }
 
 function AppShell() {
-  const orientation = useDeviceOrientation()
-  const { heading, permissionState } = orientation
-
   const { visibleAircraft, currentAircraft, setCurrentAircraft, pollingStatus } = useContext(AircraftContext)
   const { chartVariant, updateSettings, updateObserver, locationMode, homeObserver, workObserver } = useContext(SettingsContext)
   const fieldModeEnabled = locationMode === 'field'
   const geo = useGeolocation(fieldModeEnabled)
+
+  const orientation = useDeviceOrientation(geo.heading)
+  const { heading, permissionState } = orientation
+  const isCompassActive = permissionState === 'granted' || geo.heading != null
 
   useEffect(() => {
     if (!homeObserver) return
@@ -196,7 +202,7 @@ function AppShell() {
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}
-                compassActive={permissionState === 'granted'}
+                compassActive={isCompassActive}
               />
             </div>
 
@@ -208,7 +214,7 @@ function AppShell() {
                 </div>
                 <div className="stat-sub">
                   {currentAircraft
-                    ? permissionState === 'granted'
+                    ? isCompassActive
                       ? azToRelative(currentAircraft.az, heading)
                       : azToCardinal(currentAircraft.az)
                     : ''}

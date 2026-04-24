@@ -3,9 +3,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 /**
  * React hook to access device orientation (compass heading).
  * Handles iOS permission request logic and Android 'absolute' orientation.
+ * Accepts `gpsHeading` as a fallback when native orientation is unavailable.
  */
-export function useDeviceOrientation() {
-  const [heading, setHeading] = useState(0)
+export function useDeviceOrientation(gpsHeading = null) {
+  const [nativeHeading, setNativeHeading] = useState(0)
   const [isSupported, setIsSupported] = useState(false)
   const [permissionState, setPermissionState] = useState('unknown') // 'unknown' | 'granted' | 'denied'
 
@@ -27,7 +28,7 @@ export function useDeviceOrientation() {
         const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
         smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
       }
-      setHeading(smoothedHeadingRef.current)
+      setNativeHeading(smoothedHeadingRef.current)
     }
   }, [])
 
@@ -92,6 +93,8 @@ export function useDeviceOrientation() {
       }
     }
   }, [])
+
+  const heading = permissionState === 'granted' ? nativeHeading : (gpsHeading ?? 0)
 
   return { heading, isSupported, permissionState, requestPermission }
 }
