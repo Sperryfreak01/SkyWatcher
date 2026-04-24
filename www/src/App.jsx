@@ -1,3 +1,4 @@
+// DEPLOY_FORCE_BUILD_2026_04_22_1800
 import { useContext, useState, useEffect, useRef } from 'react'
 import { AircraftContext } from './contexts/AircraftContext'
 import { SettingsContext } from './contexts/SettingsContext'
@@ -60,7 +61,7 @@ export default function App() {
 
   if (debugMode) {
     return (
-      <div className="app">
+      <div className="app is-debug">
         <EngineRoom />
       </div>
     )
