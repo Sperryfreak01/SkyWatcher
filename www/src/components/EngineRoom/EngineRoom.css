@@ -6,6 +6,22 @@
   color: var(--ink);
   background: var(--bg);
   min-height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.app.is-debug {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+}
+
+@media (max-width: 768px) {
+  .engine-room {
+    padding: 16px;
+  }
 }
 
 .er-header {
@@ -15,6 +31,18 @@
   margin-bottom: 32px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line);
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .er-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .er-header h1 {
+    font-size: 24px;
+  }
 }
 
 .er-header h1 {
@@ -32,11 +60,12 @@
 
 .er-metrics-panel {
   margin-bottom: 40px;
+  flex-shrink: 0;
 }
 
 .er-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -75,19 +104,33 @@
 .er-value {
   font-weight: bold;
   color: var(--ink);
+  word-break: break-all;
+  text-align: right;
+  margin-left: 10px;
+}
+
+.er-filter-log {
+  flex: 1;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .er-table-container {
-  overflow-x: auto;
+  overflow: auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 4px;
+  width: 100%;
+  flex: 1;
 }
 
 .er-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 600px; /* Ensure table doesn't get too squished */
 }
 
 .er-table th {
@@ -99,6 +142,9 @@
   color: var(--mute);
   border-bottom: 2px solid var(--line);
   background: var(--surface-2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .er-table td {
@@ -118,6 +164,7 @@
   padding: 4px 8px;
   border-radius: 2px;
   letter-spacing: 0.1em;
+  white-space: nowrap;
 }
 
 .er-badge-accepted {
