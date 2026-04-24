@@ -8,26 +8,40 @@ export function useDeviceOrientation(gpsHeading = null) {
   const [nativeHeading, setNativeHeading] = useState(0)
   const [isSupported, setIsSupported] = useState(false)
   const [permissionState, setPermissionState] = useState('unknown')
+  const [smoothedGpsHeading, setSmoothedGpsHeading] = useState(null)
 
-  const smoothedHeadingRef = useRef(null)
+  const smoothedNativeRef = useRef(null)
+  const smoothedGpsRef = useRef(null)
   const sensorRef = useRef(null)
 
-  const ALPHA = 0.15
+  const ALPHA = 0.15 // smoothing factor: lower = smoother, higher = more responsive
+
+  const applySmoothing = useCallback((current, target) => {
+    if (current === null) return target
+    const delta = ((target - current + 540) % 360) - 180
+    return (current + ALPHA * delta + 360) % 360
+  }, []);
 
   const updateHeading = useCallback((correctedHeading, type) => {
-    if (smoothedHeadingRef.current === null) {
-      smoothedHeadingRef.current = correctedHeading
-    } else {
-      const delta = ((correctedHeading - smoothedHeadingRef.current + 540) % 360) - 180
-      smoothedHeadingRef.current = (smoothedHeadingRef.current + ALPHA * delta + 360) % 360
-    }
+    smoothedNativeRef.current = applySmoothing(smoothedNativeRef.current, correctedHeading)
     
-    // Log every 100th event to show activity without flooding
+    // Log occasionally to show activity without flooding
     if (Math.random() < 0.01) {
-      console.log(`[orientation] DATA: ${type} | current: ${correctedHeading.toFixed(1)} | smoothed: ${smoothedHeadingRef.current.toFixed(1)}`);
+      console.log(`[orientation] DATA: ${type} | current: ${correctedHeading.toFixed(1)} | smoothed: ${smoothedNativeRef.current.toFixed(1)}`);
     }
-    setNativeHeading(smoothedHeadingRef.current)
-  }, []);
+    setNativeHeading(smoothedNativeRef.current)
+  }, [applySmoothing]);
+
+  // Sync GPS heading smoothing
+  useEffect(() => {
+    if (gpsHeading !== null) {
+      const next = applySmoothing(smoothedGpsRef.current, gpsHeading)
+      smoothedGpsRef.current = next
+      setSmoothedGpsHeading(next)
+    } else {
+      setSmoothedGpsHeading(null)
+    }
+  }, [gpsHeading, applySmoothing])
 
   const handleOrientation = useCallback((event) => {
     const h = event.webkitCompassHeading != null ? event.webkitCompassHeading : event.alpha
@@ -96,7 +110,6 @@ export function useDeviceOrientation(gpsHeading = null) {
     
     setIsSupported(true);
 
-    // If not iOS, start immediately
     const isIOS = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
     if (!isIOS) {
       console.log('[orientation] auto-starting listeners');
@@ -137,11 +150,7 @@ export function useDeviceOrientation(gpsHeading = null) {
     }
   };
 
-  const heading = (gpsHeading !== null) ? gpsHeading : (permissionState === 'granted' || permissionState === 'unknown') ? nativeHeading : 0
+  const heading = (smoothedGpsHeading !== null) ? smoothedGpsHeading : (permissionState === 'granted' || permissionState === 'unknown') ? nativeHeading : 0
   
-  if (gpsHeading !== null && Math.random() < 0.05) {
-    console.log(`[orientation] Using GPS/Calculated heading: ${gpsHeading.toFixed(1)}`);
-  }
-
   return { heading, isSupported, permissionState, requestPermission }
 }
