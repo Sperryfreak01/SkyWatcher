@@ -137,6 +137,11 @@ export function useDeviceOrientation(gpsHeading = null) {
     }
   };
 
-  const heading = (permissionState === 'granted' || permissionState === 'unknown') ? nativeHeading : (gpsHeading ?? 0)
+  const heading = (gpsHeading !== null) ? gpsHeading : (permissionState === 'granted' || permissionState === 'unknown') ? nativeHeading : 0
+  
+  if (gpsHeading !== null && Math.random() < 0.05) {
+    console.log(`[orientation] Using GPS/Calculated heading: ${gpsHeading.toFixed(1)}`);
+  }
+
   return { heading, isSupported, permissionState, requestPermission }
 }

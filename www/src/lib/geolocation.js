@@ -25,6 +25,7 @@ export function useGeolocation(enabled) {
   const [error, setError] = useState(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
 
+  const lastPosRef = useRef(null)
   const failuresRef = useRef(0)
   const deniedRef = useRef(false)
   const retryCountRef = useRef(0)
@@ -47,15 +48,36 @@ export function useGeolocation(enabled) {
       failuresRef.current = 0
       setConsecutiveFailures(0)
       setError(null)
+
+      const newLat = pos.coords.latitude
+      const newLon = pos.coords.longitude
+      let calculatedHeading = pos.coords.heading
+
+      // If browser doesn't provide heading but we have movement, calculate it from coordinate delta
+      if (calculatedHeading === null && lastPosRef.current && pos.coords.speed > 0.5) {
+        const lat1 = lastPosRef.current.lat * Math.PI / 180
+        const lon1 = lastPosRef.current.lon * Math.PI / 180
+        const lat2 = newLat * Math.PI / 180
+        const lon2 = newLon * Math.PI / 180
+        
+        const y = Math.sin(lon2 - lon1) * Math.cos(lat2)
+        const x = Math.cos(lat1) * Math.sin(lat2) -
+                  Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1)
+        const brng = Math.atan2(y, x)
+        calculatedHeading = (brng * 180 / Math.PI + 360) % 360
+      }
+
+      lastPosRef.current = { lat: newLat, lon: newLon }
+
       setPosition({
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
+        lat: newLat,
+        lon: newLon,
         accuracy: pos.coords.accuracy,
         altitude: pos.coords.altitude,
         altitudeAccuracy: pos.coords.altitudeAccuracy,
         speed: pos.coords.speed
       })
-      setHeading(pos.coords.heading)
+      setHeading(calculatedHeading)
     }
 
     function handleError(err) {
