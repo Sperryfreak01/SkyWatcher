@@ -69,9 +69,12 @@ export function SettingsProvider({ children }) {
   }, [])
 
   // Set once on initial server sync — never overwritten after that.
-  const captureHomeObserver = useCallback(() => {
+  const captureHomeObserver = useCallback((explicitHome = null) => {
     setSettings(prev => {
       if (prev.homeObserver !== null) return prev
+      if (explicitHome && explicitHome.lat !== null) {
+        return { ...prev, homeObserver: { ...explicitHome } }
+      }
       if (prev.observer.lat === null) return prev
       return { ...prev, homeObserver: { ...prev.observer } }
     })
