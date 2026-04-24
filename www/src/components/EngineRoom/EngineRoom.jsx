@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import { AircraftContext } from '../../contexts/AircraftContext';
 import { SettingsContext } from '../../contexts/SettingsContext';
 import { isVisible } from '../../lib/adsb';
@@ -13,6 +13,53 @@ export default function EngineRoom() {
   
   const [metrics, setMetrics] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [uiLogs, setUiLogs] = useState([]);
+  const logsRef = useRef([]);
+
+  // Intercept console.log specifically for this component to show on UI
+  useEffect(() => {
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    const addLog = (type, args) => {
+      const msg = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+      ).join(' ');
+      
+      const newEntry = { 
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString(), 
+        type, 
+        msg 
+      };
+      
+      // Filter for orientation logs to keep the UI clean
+      if (msg.includes('[orientation]')) {
+        logsRef.current = [newEntry, ...logsRef.current].slice(0, 10);
+        setUiLogs([...logsRef.current]);
+      }
+    };
+
+    console.log = (...args) => {
+      addLog('info', args);
+      originalLog.apply(console, args);
+    };
+    console.warn = (...args) => {
+      addLog('warn', args);
+      originalWarn.apply(console, args);
+    };
+    console.error = (...args) => {
+      addLog('error', args);
+      originalError.apply(console, args);
+    };
+
+    return () => {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, []);
 
   useEffect(() => {
     setLastUpdate(new Date());
@@ -39,7 +86,7 @@ export default function EngineRoom() {
     <div className="engine-room">
       <div className="er-header">
         <div>
-          <h1>Engine Room Diagnostic Dashboard v1.2</h1>
+          <h1>Engine Room Diagnostic Dashboard v1.3</h1>
           <p className="label" style={{ marginTop: 4 }}>Last data update: {lastUpdate.toLocaleTimeString()}</p>
         </div>
         <div className="er-actions">
@@ -76,6 +123,20 @@ export default function EngineRoom() {
             )}
           </div>
 
+          {/* Orientation Event Log */}
+          <div className="er-metric-card">
+            <h3>Orientation Event Log</h3>
+            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '10px', fontFamily: 'var(--mono)' }}>
+              {uiLogs.length > 0 ? uiLogs.map(log => (
+                <div key={log.id} style={{ borderBottom: '1px solid var(--line-2)', padding: '2px 0', color: log.type === 'error' ? 'var(--warn)' : 'inherit' }}>
+                   [{log.time}] {log.msg.replace('[orientation] ', '')}
+                </div>
+              )) : (
+                <div style={{ color: 'var(--mute)' }}>Waiting for events...</div>
+              )}
+            </div>
+          </div>
+
           {metrics ? (
             <>
               <div className="er-metric-card">
@@ -94,17 +155,6 @@ export default function EngineRoom() {
                 <div className="er-metric-row">
                   <span className="er-label">IPs:</span>
                   <span className="er-value">{metrics.sessions.ips.join(', ') || 'None'}</span>
-                </div>
-              </div>
-              <div className="er-metric-card">
-                <h3>Latency</h3>
-                <div className="er-metric-row">
-                  <span className="er-label">Last:</span>
-                  <span className="er-value">{metrics.latency.last}ms</span>
-                </div>
-                <div className="er-metric-row">
-                  <span className="er-label">Avg:</span>
-                  <span className="er-value">{metrics.latency.avg.toFixed(2)}ms</span>
                 </div>
               </div>
             </>
