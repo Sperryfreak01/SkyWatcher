@@ -108,6 +108,7 @@ function AppShell() {
 
   const orientation = useDeviceOrientation(geo.heading)
   const { heading, permissionState } = orientation
+  const isCompassActive = permissionState === 'granted' || geo.heading != null
 
   useEffect(() => {
     if (!homeObserver) return
@@ -201,7 +202,7 @@ function AppShell() {
                 variant={variant}
                 loading={pollingStatus === 'idle'}
                 rotation={heading}
-                compassActive={permissionState === 'granted'}
+                compassActive={isCompassActive}
               />
             </div>
 
@@ -213,7 +214,7 @@ function AppShell() {
                 </div>
                 <div className="stat-sub">
                   {currentAircraft
-                    ? permissionState === 'granted'
+                    ? isCompassActive
                       ? azToRelative(currentAircraft.az, heading)
                       : azToCardinal(currentAircraft.az)
                     : ''}
