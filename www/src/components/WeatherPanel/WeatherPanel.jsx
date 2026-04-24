@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState, useRef } from 'react'
 import { AircraftContext } from '../../contexts/AircraftContext'
 import { SettingsContext } from '../../contexts/SettingsContext'
 import { fetchWeather } from '../../lib/weather'
@@ -69,11 +69,14 @@ function SkeletonTile() {
   )
 }
 
+const MIN_FETCH_INTERVAL_MS = 60000 // 1 minute
+
 export default function WeatherPanel() {
   const { observer } = useContext(SettingsContext)
   const { history, pollingStatus } = useContext(AircraftContext)
   const [weather, setWeather] = useState(null)
   const [loading, setLoading] = useState(false)
+  const lastFetchRef = useRef(0)
 
   const lastAircraft = history?.[0] ?? null
 
@@ -84,16 +87,36 @@ export default function WeatherPanel() {
       return
     }
 
-    const ac = new AbortController()
-    setLoading(true)
-    setWeather(null)
+    const now = Date.now()
+    if (now - lastFetchRef.current < MIN_FETCH_INTERVAL_MS && weather !== null) {
+      // Don't update more than once a minute if we already have data
+      return
+    }
 
+    const ac = new AbortController()
+    
+    // Only show loading skeletons if we don't have any weather data yet
+    // This prevents the "flashing" on subsequent updates
+    if (!weather) {
+      setLoading(true)
+    }
+
+    lastFetchRef.current = now
     fetchWeather(observer.lat, observer.lon, ac.signal).then(data => {
-      setWeather(data)
+      if (data) {
+        setWeather(data)
+      }
       setLoading(false)
+    }).catch(err => {
+      if (err.name !== 'AbortError') {
+        console.error('[WeatherPanel] fetch failed:', err)
+        setLoading(false)
+      }
     })
 
     return () => ac.abort()
+    // Explicitly depend on lat/lon to avoid triggering on other observer changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [observer?.lat, observer?.lon])
 
   return (
