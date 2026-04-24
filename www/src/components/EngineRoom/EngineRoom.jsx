@@ -90,7 +90,7 @@ export default function EngineRoom() {
     <div className="engine-room">
       <div className="er-header">
         <div>
-          <h1>Engine Room Diagnostic Dashboard v1.4</h1>
+          <h1>Engine Room Diagnostic Dashboard v1.5</h1>
           <p className="label" style={{ marginTop: 4 }}>Last data update: {lastUpdate.toLocaleTimeString()}</p>
         </div>
         <div className="er-actions">
@@ -101,25 +101,60 @@ export default function EngineRoom() {
       <div className="er-metrics-panel">
         <h2 className="er-section-title">System Diagnostics</h2>
         <div className="er-metrics-grid">
-          {/* Device Orientation Card */}
+          {/* Device Orientation & GPS Card */}
           <div className="er-metric-card">
             <h3>Orientation & GPS</h3>
             <div className="er-metric-row">
               <span className="er-label">Active Heading:</span>
               <span className="er-value accent">{Math.round(heading)}°</span>
             </div>
-            <div className="er-metric-row">
-              <span className="er-label">GPS Heading:</span>
-              <span className="er-value">{geo.position?.heading != null ? `${Math.round(geo.position.heading)}°` : 'null'}</span>
+            
+            <div style={{ borderTop: '1px solid var(--line-2)', margin: '8px 0', paddingTop: '8px' }}>
+              <div className="er-metric-row">
+                <span className="er-label">Lat:</span>
+                <span className="er-value">{geo.position?.lat?.toFixed(5) ?? 'null'}</span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">Lon:</span>
+                <span className="er-value">{geo.position?.lon?.toFixed(5) ?? 'null'}</span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">GPS Heading:</span>
+                <span className="er-value">{geo.position?.heading != null ? `${Math.round(geo.position.heading)}°` : 'null'}</span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">Accuracy:</span>
+                <span className="er-value">{geo.position?.accuracy != null ? `${Math.round(geo.position.accuracy)}m` : 'null'}</span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">Altitude:</span>
+                <span className="er-value">
+                  {geo.position?.altitude != null 
+                    ? `${Math.round(geo.position.altitude * 3.28084)}ft` // Convert m to ft
+                    : 'null'}
+                </span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">Speed:</span>
+                <span className="er-value">
+                  {geo.position?.speed != null 
+                    ? `${Math.round(geo.position.speed * 2.23694)}mph` // Convert m/s to mph
+                    : 'null'}
+                </span>
+              </div>
             </div>
-            <div className="er-metric-row">
-              <span className="er-label">Sensors Supported:</span>
-              <span className="er-value">{String(isSupported)}</span>
+
+            <div style={{ borderTop: '1px solid var(--line-2)', margin: '8px 0', paddingTop: '8px' }}>
+              <div className="er-metric-row">
+                <span className="er-label">Sensors Supported:</span>
+                <span className="er-value">{String(isSupported)}</span>
+              </div>
+              <div className="er-metric-row">
+                <span className="er-label">Sensor Perm:</span>
+                <span className="er-value">{permissionState}</span>
+              </div>
             </div>
-            <div className="er-metric-row">
-              <span className="er-label">Sensor Perm:</span>
-              <span className="er-value">{permissionState}</span>
-            </div>
+            
             {isSupported && permissionState !== 'granted' && (
               <button 
                 className="btn primary" 
@@ -134,7 +169,7 @@ export default function EngineRoom() {
           {/* Orientation Event Log */}
           <div className="er-metric-card">
             <h3>Event Log</h3>
-            <div style={{ maxHeight: '120px', overflowY: 'auto', fontSize: '10px', fontFamily: 'var(--mono)' }}>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', fontSize: '10px', fontFamily: 'var(--mono)' }}>
               {uiLogs.length > 0 ? uiLogs.map(log => (
                 <div key={log.id} style={{ borderBottom: '1px solid var(--line-2)', padding: '2px 0', color: log.type === 'error' ? 'var(--warn)' : 'inherit' }}>
                    [{log.time}] {log.msg.replace('[orientation] ', '')}

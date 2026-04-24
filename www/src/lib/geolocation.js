@@ -51,6 +51,9 @@ export function useGeolocation(enabled) {
         lat: pos.coords.latitude,
         lon: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
+        altitude: pos.coords.altitude,
+        altitudeAccuracy: pos.coords.altitudeAccuracy,
+        speed: pos.coords.speed
       })
       setHeading(pos.coords.heading)
     }
